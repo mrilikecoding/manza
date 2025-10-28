@@ -523,13 +523,13 @@ The following features are explicitly **not** included in the MVP:
 
 ## 12. Development Timeline & Progress Tracking
 
-### Phase 1: Foundation (Weeks 1-2)
+### Phase 1: Foundation (Weeks 1-2) ✅ COMPLETE
 - [x] Project setup (Configuration files, tooling)
 - [x] Tauri initialization and configuration
 - [x] Basic React + TypeScript app structure
 - [x] Basic file explorer component
 - [x] Simple markdown editor (CodeMirror 6)
-- [ ] Basic preview pane
+- [x] Basic preview pane
 
 ### Phase 2: Core Features (Weeks 3-4)
 - [ ] GitHub Flavored Markdown support (tables, task lists, strikethrough)
