@@ -525,8 +525,8 @@ The following features are explicitly **not** included in the MVP:
 
 ### Phase 1: Foundation (Weeks 1-2)
 - [x] Project setup (Configuration files, tooling)
-- [ ] Tauri initialization and configuration
-- [ ] Basic React + TypeScript app structure
+- [x] Tauri initialization and configuration
+- [x] Basic React + TypeScript app structure
 - [ ] Basic file explorer component
 - [ ] Simple markdown editor (CodeMirror/Monaco)
 - [ ] Basic preview pane
