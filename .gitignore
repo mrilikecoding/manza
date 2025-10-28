@@ -1,0 +1,90 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Dependencies
+package-lock.json
+pnpm-lock.yaml
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+src-tauri/WixTools/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+.vite/
+vite.config.ts.timestamp-*
+
+# Turbo
+.turbo/
+
+# Rust
+**/*.rs.bk
+*.pdb
+
+# Generated documentation
+docs/api/
+
+# Release artifacts (keep in target/release/bundle/ only)
+*.dmg
+*.AppImage
+*.msi
+*.deb
+*.rpm
+!src-tauri/target/release/bundle/**
+
+# Local development
+.cache/

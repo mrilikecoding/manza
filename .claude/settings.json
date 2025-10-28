@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "preWriteFile": {
+      "command": "yarn lint:check \"$FILE_PATH\" && yarn typecheck",
+      "description": "Run ESLint and TypeScript checks before writing files",
+      "blocking": true
+    },
+    "preCommit": {
+      "command": "make pre-commit-checks",
+      "description": "Run all pre-commit quality checks (lint, format, type check, Rust checks)",
+      "blocking": true
+    },
+    "postTest": {
+      "command": "make coverage-check",
+      "description": "Verify test coverage meets 70% threshold",
+      "blocking": true
+    }
+  },
+  "statusLine": {
+    "format": "Manza | {branch} | {workingDir}"
+  },
+  "editor": {
+    "formatOnSave": true,
+    "rulers": [80, 120]
+  }
+}
