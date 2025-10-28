@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -72,6 +73,30 @@ fn is_markdown_file(filename: &str) -> bool {
     lower.ends_with(".md")
         || lower.ends_with(".markdown")
         || lower.ends_with(".mdown")
+}
+
+/// Read file contents as UTF-8 string
+pub fn read_file(path: &str) -> Result<String, String> {
+    fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))
+}
+
+/// Write content to file
+pub fn write_file(path: &str, content: &str) -> Result<(), String> {
+    let file_path = PathBuf::from(path);
+
+    // Create parent directories if they don't exist
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create parent directories: {}", e))?;
+    }
+
+    let mut file = fs::File::create(&file_path)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+
+    file.write_all(content.as_bytes())
+        .map_err(|e| format!("Failed to write to file: {}", e))?;
+
+    Ok(())
 }
 
 #[cfg(test)]

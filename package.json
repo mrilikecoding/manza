@@ -50,6 +50,15 @@
     "docs:serve": "npx serve docs/api -p 3001"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.19.1",
+    "@codemirror/commands": "^6.10.0",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/lint": "^6.9.1",
+    "@codemirror/search": "^6.5.11",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.38.6",
     "@tauri-apps/api": "^1.6.0",
     "chokidar": "^4.0.1",
     "katex": "^0.16.11",
