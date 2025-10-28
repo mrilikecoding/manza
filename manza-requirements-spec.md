@@ -527,7 +527,7 @@ The following features are explicitly **not** included in the MVP:
 - [x] Project setup (Configuration files, tooling)
 - [x] Tauri initialization and configuration
 - [x] Basic React + TypeScript app structure
-- [ ] Basic file explorer component
+- [x] Basic file explorer component
 - [ ] Simple markdown editor (CodeMirror/Monaco)
 - [ ] Basic preview pane
 
