@@ -237,6 +237,100 @@ manza/
 
 ## Development Workflow
 
+### Git Flow Strategy
+
+**Branch Strategy:**
+- `main` - Stable, production-ready code
+- `feature/*` - Feature development branches
+- `bugfix/*` - Bug fix branches
+- `release/*` - Release preparation branches
+
+**Workflow:**
+1. Work directly on `main` for initial setup and configuration
+2. Once code development begins, create feature branches
+3. Use PR workflow for merging features back to `main`
+4. Tag releases on `main` branch
+
+**Branch Naming:**
+```bash
+feature/file-explorer      # New feature
+feature/markdown-preview   # New feature
+bugfix/save-crash         # Bug fix
+release/v1.0.0            # Release prep
+```
+
+**When to Branch:**
+- Initial project setup (configs, tooling) → work on `main`
+- Starting code implementation → create `feature/*` branch
+- Bug fixes after initial release → create `bugfix/*` branch
+
+### BDD → TDD Development Workflow
+
+**Important:** This is the required workflow for all feature development.
+
+**Exception:** Initial project setup (Tauri initialization, basic scaffolding) may proceed without full BDD/TDD coverage as it's primarily configuration. Once we have the foundation, all features MUST follow this workflow.
+
+#### Step 1: Specification (BDD)
+Write behavior scenarios in Given/When/Then format:
+
+```gherkin
+Feature: File Explorer
+  Scenario: User opens a directory
+    Given the application is running
+    When the user selects a directory
+    Then the file tree displays all files and folders
+    And markdown files are highlighted
+```
+
+Store scenarios in test files or comments for traceability.
+
+#### Step 2: Write Failing Tests (TDD Red)
+```typescript
+describe('FileExplorer', () => {
+  it('should display files when directory is selected', () => {
+    // Arrange
+    const mockFiles = [{ name: 'README.md', type: 'file' }];
+
+    // Act
+    render(<FileExplorer files={mockFiles} />);
+
+    // Assert
+    expect(screen.getByText('README.md')).toBeInTheDocument();
+  });
+});
+```
+
+Run tests: `make test-watch` → Tests should fail (Red phase)
+
+#### Step 3: Implement Minimal Code (TDD Green)
+Write just enough code to make tests pass:
+
+```typescript
+export function FileExplorer({ files }) {
+  return (
+    <ul>
+      {files.map(file => <li key={file.name}>{file.name}</li>)}
+    </ul>
+  );
+}
+```
+
+Run tests: `make test-watch` → Tests should pass (Green phase)
+
+#### Step 4: Refactor (TDD Refactor)
+Improve code quality while keeping tests green:
+- Extract components
+- Improve naming
+- Add TypeScript types
+- Optimize performance
+
+Run tests continuously to ensure nothing breaks.
+
+#### Step 5: Verify Coverage
+```bash
+make test-coverage  # Must maintain >70% coverage
+```
+
 ### Setup
 ```bash
 make install    # Install dependencies (Node + Rust)
@@ -256,13 +350,6 @@ Pre-commit hooks will automatically run:
 - TypeScript type check (blocking)
 - Prettier formatting (blocking)
 - Rust clippy + rustfmt (blocking)
-
-### Testing Strategy (BDD + TDD)
-1. Write BDD scenarios for features (Given/When/Then)
-2. Write failing tests first (TDD red phase)
-3. Implement minimal code to pass tests (TDD green phase)
-4. Refactor while keeping tests green (TDD refactor phase)
-5. Ensure 70% coverage threshold
 
 ### Release Process
 See RELEASE.md for complete release strategy.

@@ -28,7 +28,10 @@
   ],
   "scripts": {
     "dev": "tauri dev",
-    "build": "tsc && vite build && tauri build",
+    "dev:frontend": "vite",
+    "build": "tsc && vite build",
+    "build:frontend": "vite build",
+    "build:tauri": "tauri build",
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
