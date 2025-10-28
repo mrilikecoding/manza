@@ -528,7 +528,7 @@ The following features are explicitly **not** included in the MVP:
 - [x] Tauri initialization and configuration
 - [x] Basic React + TypeScript app structure
 - [x] Basic file explorer component
-- [ ] Simple markdown editor (CodeMirror/Monaco)
+- [x] Simple markdown editor (CodeMirror 6)
 - [ ] Basic preview pane
 
 ### Phase 2: Core Features (Weeks 3-4)
