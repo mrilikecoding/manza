@@ -521,36 +521,51 @@ The following features are explicitly **not** included in the MVP:
 
 ---
 
-## 12. Development Timeline
+## 12. Development Timeline & Progress Tracking
 
 ### Phase 1: Foundation (Weeks 1-2)
-- Project setup (Tauri + React + TypeScript)
-- Basic file explorer
-- Simple markdown editor
-- Basic preview
+- [x] Project setup (Configuration files, tooling)
+- [ ] Tauri initialization and configuration
+- [ ] Basic React + TypeScript app structure
+- [ ] Basic file explorer component
+- [ ] Simple markdown editor (CodeMirror/Monaco)
+- [ ] Basic preview pane
 
 ### Phase 2: Core Features (Weeks 3-4)
-- GitHub Flavored Markdown support
-- Code highlighting
-- LaTeX rendering
-- Mermaid diagrams
+- [ ] GitHub Flavored Markdown support (tables, task lists, strikethrough)
+- [ ] Code syntax highlighting (Shiki integration)
+- [ ] LaTeX rendering (KaTeX)
+- [ ] Mermaid diagram rendering
+- [ ] File operations (create, delete, rename)
+- [ ] File watching and auto-refresh
 
 ### Phase 3: Polish (Weeks 5-6)
-- Themes (light/dark)
-- Keyboard shortcuts
-- Performance optimization
-- Error handling
+- [ ] Light theme (GitHub light)
+- [ ] Dark theme (GitHub dark)
+- [ ] System theme detection
+- [ ] Keyboard shortcuts implementation
+- [ ] Performance optimization (lazy loading, virtualization)
+- [ ] Error handling and user feedback
+- [ ] Auto-save functionality
 
 ### Phase 4: Distribution (Week 7)
-- Homebrew cask
-- GitHub releases
-- Documentation
-- Demo video/screenshots
+- [ ] Build scripts for all platforms
+- [ ] macOS .dmg creation
+- [ ] Linux AppImage
+- [ ] Windows installer
+- [ ] Homebrew cask formula
+- [ ] GitHub releases automation
+- [ ] README.md with screenshots
+- [ ] User documentation
 
 ### Phase 5: Launch (Week 8)
-- Open source release
-- Community setup
-- Marketing (Show HN, Reddit, Twitter)
+- [ ] MIT License file
+- [ ] CONTRIBUTING.md
+- [ ] CODE_OF_CONDUCT.md
+- [ ] GitHub Issues templates
+- [ ] Open source release announcement
+- [ ] Community setup (Discussions, etc.)
+- [ ] Marketing (Show HN, Reddit, Twitter)
 
 ---
 

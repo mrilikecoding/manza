@@ -325,6 +325,7 @@ make release-minor   # Full minor release flow
 8. **Keyboard accessibility** - Every feature should have keyboard shortcuts
 9. **Cross-platform considerations** - Test on all platforms when possible
 10. **Local-first philosophy** - Never add cloud dependencies without explicit approval
+11. **No AI attribution** - Do not add AI attribution to commits, releases, or code
 
 ## Resources
 
