@@ -9,12 +9,13 @@ export interface FileItem {
 }
 
 export interface FileExplorerProps {
-  rootPath: string | null;
+  rootPath?: string | null;
   files?: FileItem[];
   onFileSelect: (path: string) => void;
+  showDirectoryButton?: boolean;
 }
 
-export function FileExplorer({ rootPath, files = [], onFileSelect }: FileExplorerProps) {
+export function FileExplorer({ rootPath, files = [], onFileSelect, showDirectoryButton = true }: FileExplorerProps) {
   const handleSelectDirectory = async () => {
     try {
       const result = await invoke<string | null>('select_directory');
@@ -49,7 +50,7 @@ export function FileExplorer({ rootPath, files = [], onFileSelect }: FileExplore
     return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });
 
-  if (!rootPath) {
+  if (!rootPath && files.length === 0) {
     return (
       <div
         data-testid="file-explorer"
@@ -75,25 +76,27 @@ export function FileExplorer({ rootPath, files = [], onFileSelect }: FileExplore
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Select a folder containing your markdown files
           </p>
-          <button
-            onClick={handleSelectDirectory}
-            className="mt-6 inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            <svg
-              className="-ml-1 mr-2 h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          {showDirectoryButton && (
+            <button
+              onClick={handleSelectDirectory}
+              className="mt-6 inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-              />
-            </svg>
-            Select Directory
-          </button>
+              <svg
+                className="-ml-1 mr-2 h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
+              </svg>
+              Select Directory
+            </button>
+          )}
         </div>
       </div>
     );
