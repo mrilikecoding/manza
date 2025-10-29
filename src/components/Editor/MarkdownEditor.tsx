@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, lineWrapping } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -71,6 +71,7 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
         markdown(),
         markdownKeymap,
         oneDark,
+        EditorView.editable.of(true),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             const newContent = update.state.doc.toString();
@@ -85,13 +86,18 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
             }, 2000);
           }
         }),
+        lineWrapping,
         EditorView.theme({
           '&': {
             height: '100%',
             fontSize: '14px',
           },
           '.cm-scroller': {
+            overflow: 'auto',
             fontFamily: 'SFMono-Regular, Consolas, Liberation Mono, Menlo, Courier, monospace',
+          },
+          '.cm-content': {
+            minHeight: '100%',
           },
         }),
       ],
