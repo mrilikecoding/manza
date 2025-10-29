@@ -30,6 +30,10 @@ A dead simple, lightweight, open-source markdown editor and viewer that combines
 
 #### 2.1.1 File Explorer
 - **Tree-based file browser** with hierarchical folder structure
+  - Expandable/collapsible folders (clicking folders expands/collapses them)
+  - Navigate into subdirectories (make subdirectory the current root)
+  - Navigate up to parent directory (cd .. functionality)
+  - Breadcrumb or path display showing current directory
 - **Show dotfiles** (files/folders starting with `.`)
 - **File operations:**
   - Open files
@@ -44,7 +48,12 @@ A dead simple, lightweight, open-source markdown editor and viewer that combines
 - **Keyboard navigation:** Full keyboard support for file tree
 
 #### 2.1.2 Markdown Editing
-- **Split-pane interface:** Editor on left, live preview on right
+- **Resizable split-pane interface:**
+  - Editor on left, live preview on right
+  - Draggable divider to resize panes
+  - Ability to collapse/expand editor pane (preview-only mode)
+  - Ability to collapse/expand preview pane (editor-only mode)
+  - Persist pane sizes in user preferences
 - **Syntax highlighting** in editor for markdown
 - **Line numbers** in editor
 - **Basic editor features:**
@@ -539,6 +548,11 @@ The following features are explicitly **not** included in the MVP:
 
 ### Phase 2: Core Features (Weeks 3-4) - IN PROGRESS
 - [x] GitHub Flavored Markdown support (tables, task lists, strikethrough)
+- [ ] **Resizable panes with draggable dividers**
+- [ ] **Collapsible editor/preview panes**
+- [ ] **Tree-style folder navigation (expand/collapse folders)**
+- [ ] **Navigate up/down directory hierarchy (cd .. and into subdirs)**
+- [ ] **Current directory breadcrumb/path display**
 - [ ] Code syntax highlighting (Shiki integration)
 - [ ] LaTeX rendering (KaTeX)
 - [ ] Mermaid diagram rendering
