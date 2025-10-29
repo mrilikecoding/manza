@@ -24,6 +24,7 @@ export function AppLayout() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
+  const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false);
 
   const handleSelectDirectory = useCallback(async () => {
     try {
@@ -190,38 +191,88 @@ export function AppLayout() {
     setIsPreviewCollapsed(!isPreviewCollapsed);
   }, [isPreviewCollapsed]);
 
+  const handleToggleFileExplorer = useCallback(() => {
+    setIsFileExplorerCollapsed(!isFileExplorerCollapsed);
+  }, [isFileExplorerCollapsed]);
+
   return (
     <div
       data-testid="app-layout"
       className="flex h-screen w-screen overflow-hidden bg-gray-100 dark:bg-gray-800"
     >
       {/* File Explorer Column */}
-      <div
-        data-testid="file-explorer-column"
-        className="flex h-full w-64 flex-col border-r border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
-      >
-        <div className="border-b border-gray-300 p-4 dark:border-gray-700">
+      {!isFileExplorerCollapsed && (
+        <div
+          data-testid="file-explorer-column"
+          className="flex h-full w-64 flex-col border-r border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+        >
+          <div className="flex items-center justify-between border-b border-gray-300 p-2 dark:border-gray-700">
+            <button
+              onClick={handleSelectDirectory}
+              className="flex-1 rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Select Directory
+            </button>
+            <button
+              onClick={handleToggleFileExplorer}
+              className="ml-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Collapse file explorer"
+            >
+              <svg
+                className="h-4 w-4 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <FileExplorer
+              rootPath={currentDirectoryPath}
+              files={files}
+              onFileSelect={handleFileSelect}
+              onFolderExpand={handleFolderExpand}
+              onNavigateUp={handleNavigateUp}
+              onNavigateInto={handleNavigateInto}
+              onBreadcrumbClick={handleBreadcrumbClick}
+              isAtRoot={isAtRoot}
+              showDirectoryButton={false}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Expand File Explorer Button (shown when collapsed) */}
+      {isFileExplorerCollapsed && (
+        <div className="flex items-center border-r border-gray-300 dark:border-gray-700">
           <button
-            onClick={handleSelectDirectory}
-            className="w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={handleToggleFileExplorer}
+            className="rounded-r bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+            title="Expand file explorer"
           >
-            Select Directory
+            <svg
+              className="h-5 w-5 text-gray-600 dark:text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 5l7 7-7 7M5 5l7 7-7 7"
+              />
+            </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-auto">
-          <FileExplorer
-            rootPath={currentDirectoryPath}
-            files={files}
-            onFileSelect={handleFileSelect}
-            onFolderExpand={handleFolderExpand}
-            onNavigateUp={handleNavigateUp}
-            onNavigateInto={handleNavigateInto}
-            onBreadcrumbClick={handleBreadcrumbClick}
-            isAtRoot={isAtRoot}
-            showDirectoryButton={false}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Resizable Editor and Preview Panes */}
       <ResizablePanes

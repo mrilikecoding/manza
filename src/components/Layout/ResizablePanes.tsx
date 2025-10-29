@@ -80,7 +80,7 @@ export function ResizablePanes({
         data-testid="left-pane"
         className={`flex flex-col ${isLeftCollapsed ? 'hidden' : ''}`}
         style={{
-          width: isLeftCollapsed ? '0%' : `${leftWidth}%`,
+          width: isLeftCollapsed ? '0%' : isRightCollapsed ? '100%' : `${leftWidth}%`,
           minWidth: isLeftCollapsed ? '0' : '20%',
         }}
       >
@@ -180,7 +180,7 @@ export function ResizablePanes({
         data-testid="right-pane"
         className={`flex flex-col ${isRightCollapsed ? 'hidden' : ''}`}
         style={{
-          width: isRightCollapsed ? '0%' : `${rightWidth}%`,
+          width: isRightCollapsed ? '0%' : isLeftCollapsed ? '100%' : `${rightWidth}%`,
           minWidth: isRightCollapsed ? '0' : '20%',
         }}
       >
