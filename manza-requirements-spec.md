@@ -530,9 +530,15 @@ The following features are explicitly **not** included in the MVP:
 - [x] Basic file explorer component
 - [x] Simple markdown editor (CodeMirror 6)
 - [x] Basic preview pane
+- [x] **App integration (FileExplorer + Editor + Preview wired together)**
+- [x] **State management for file selection and content flow**
+- [x] **Directory selection and file browsing**
+- [x] **File loading into editor with live preview**
+- [x] **Auto-save (2 seconds) and manual save (Cmd+S)**
+- [x] **Error handling for file operations**
 
-### Phase 2: Core Features (Weeks 3-4)
-- [ ] GitHub Flavored Markdown support (tables, task lists, strikethrough)
+### Phase 2: Core Features (Weeks 3-4) - IN PROGRESS
+- [x] GitHub Flavored Markdown support (tables, task lists, strikethrough)
 - [ ] Code syntax highlighting (Shiki integration)
 - [ ] LaTeX rendering (KaTeX)
 - [ ] Mermaid diagram rendering
