@@ -14,7 +14,8 @@ interface BackendFileItem {
 }
 
 export function AppLayout() {
-  const [directoryPath, setDirectoryPath] = useState<string | null>(null);
+  const [rootDirectoryPath, setRootDirectoryPath] = useState<string | null>(null);
+  const [currentDirectoryPath, setCurrentDirectoryPath] = useState<string | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [content, setContent] = useState<string>('');
@@ -30,7 +31,8 @@ export function AppLayout() {
       });
 
       if (selected && typeof selected === 'string') {
-        setDirectoryPath(selected);
+        setRootDirectoryPath(selected);
+        setCurrentDirectoryPath(selected);
         const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
           path: selected,
         });
@@ -110,6 +112,73 @@ export function AppLayout() {
     }
   }, []);
 
+  const handleNavigateInto = useCallback(async (folderPath: string) => {
+    try {
+      setError(null);
+      setCurrentDirectoryPath(folderPath);
+      const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+        path: folderPath,
+      });
+      const transformedFiles: FileItem[] = directoryContents.map(file => ({
+        name: file.name,
+        path: file.path,
+        isDirectory: file.is_directory,
+        isMarkdown: file.is_markdown,
+      }));
+      setFiles(transformedFiles);
+    } catch (err) {
+      setError(`Error loading directory: ${err}`);
+    }
+  }, []);
+
+  const handleNavigateUp = useCallback(async () => {
+    if (!currentDirectoryPath) return;
+
+    try {
+      setError(null);
+      // Get parent directory path
+      const segments = currentDirectoryPath.split('/').filter(Boolean);
+      if (segments.length === 0) return;
+
+      const parentPath = '/' + segments.slice(0, -1).join('/');
+      setCurrentDirectoryPath(parentPath);
+
+      const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+        path: parentPath,
+      });
+      const transformedFiles: FileItem[] = directoryContents.map(file => ({
+        name: file.name,
+        path: file.path,
+        isDirectory: file.is_directory,
+        isMarkdown: file.is_markdown,
+      }));
+      setFiles(transformedFiles);
+    } catch (err) {
+      setError(`Error loading directory: ${err}`);
+    }
+  }, [currentDirectoryPath]);
+
+  const handleBreadcrumbClick = useCallback(async (path: string) => {
+    try {
+      setError(null);
+      setCurrentDirectoryPath(path);
+      const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+        path,
+      });
+      const transformedFiles: FileItem[] = directoryContents.map(file => ({
+        name: file.name,
+        path: file.path,
+        isDirectory: file.is_directory,
+        isMarkdown: file.is_markdown,
+      }));
+      setFiles(transformedFiles);
+    } catch (err) {
+      setError(`Error loading directory: ${err}`);
+    }
+  }, []);
+
+  const isAtRoot = currentDirectoryPath === rootDirectoryPath;
+
   return (
     <div
       data-testid="app-layout"
@@ -130,9 +199,14 @@ export function AppLayout() {
         </div>
         <div className="flex-1 overflow-auto">
           <FileExplorer
+            rootPath={currentDirectoryPath}
             files={files}
             onFileSelect={handleFileSelect}
             onFolderExpand={handleFolderExpand}
+            onNavigateUp={handleNavigateUp}
+            onNavigateInto={handleNavigateInto}
+            onBreadcrumbClick={handleBreadcrumbClick}
+            isAtRoot={isAtRoot}
             showDirectoryButton={false}
           />
         </div>
