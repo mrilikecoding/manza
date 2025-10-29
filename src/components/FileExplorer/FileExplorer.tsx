@@ -16,10 +16,24 @@ export interface FileExplorerProps {
   files?: FileItem[];
   onFileSelect: (path: string) => void;
   onFolderExpand?: (path: string) => Promise<FileItem[]>;
+  onNavigateUp?: () => void;
+  onNavigateInto?: (path: string) => void;
+  onBreadcrumbClick?: (path: string) => void;
+  isAtRoot?: boolean;
   showDirectoryButton?: boolean;
 }
 
-export function FileExplorer({ rootPath, files = [], onFileSelect, onFolderExpand, showDirectoryButton = true }: FileExplorerProps) {
+export function FileExplorer({
+  rootPath,
+  files = [],
+  onFileSelect,
+  onFolderExpand,
+  onNavigateUp,
+  onNavigateInto,
+  onBreadcrumbClick,
+  isAtRoot = true,
+  showDirectoryButton = true,
+}: FileExplorerProps) {
   // Track which files are currently expanded
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => {
     // Initialize with files that have expanded: true
@@ -111,6 +125,26 @@ export function FileExplorer({ rootPath, files = [], onFileSelect, onFolderExpan
     }
   };
 
+  const handleFileDoubleClick = (file: FileItem) => {
+    if (file.isDirectory && onNavigateInto) {
+      onNavigateInto(file.path);
+    }
+  };
+
+  const parseBreadcrumb = (path: string | null): { name: string; path: string }[] => {
+    if (!path) return [];
+
+    const segments = path.split('/').filter(Boolean);
+    const breadcrumb: { name: string; path: string }[] = [];
+
+    segments.forEach((segment, index) => {
+      const segmentPath = '/' + segments.slice(0, index + 1).join('/');
+      breadcrumb.push({ name: segment, path: segmentPath });
+    });
+
+    return breadcrumb;
+  };
+
   const isMarkdownFile = (filename: string): boolean => {
     const lower = filename.toLowerCase();
     return lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mdown');
@@ -194,6 +228,7 @@ export function FileExplorer({ rootPath, files = [], onFileSelect, onFolderExpan
         key={file.path}
         data-testid={`file-item-${file.name}`}
         onClick={() => file.isDirectory ? handleFolderClick(file) : handleFileClick(file)}
+        onDoubleClick={() => handleFileDoubleClick(file)}
         style={{ paddingLeft: `${paddingLeft}px` }}
         className={`
           flex cursor-pointer items-center rounded px-3 py-2 text-sm
@@ -270,13 +305,65 @@ export function FileExplorer({ rootPath, files = [], onFileSelect, onFolderExpan
     return elements;
   };
 
+  const breadcrumbSegments = parseBreadcrumb(rootPath);
+
   return (
     <div
       data-testid="file-explorer"
-      className="h-full w-full overflow-auto bg-white p-4 dark:bg-gray-900"
+      className="h-full w-full overflow-auto bg-white dark:bg-gray-900"
     >
-      <div className="space-y-1">
-        {sortedFiles.map((file) => renderFileItem(file))}
+      {/* Breadcrumb and Navigation */}
+      {rootPath && (
+        <div className="sticky top-0 z-10 border-b border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
+          <div className="flex items-center space-x-2">
+            {/* Navigate Up Button */}
+            <button
+              data-testid="navigate-up-button"
+              onClick={onNavigateUp}
+              disabled={isAtRoot}
+              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
+              title="Go to parent directory"
+            >
+              <svg
+                className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 10l7-7m0 0l7 7m-7-7v18"
+                />
+              </svg>
+            </button>
+
+            {/* Breadcrumb */}
+            <div data-testid="breadcrumb" className="flex items-center space-x-1 text-sm">
+              {breadcrumbSegments.map((segment, index) => (
+                <div key={segment.path} className="flex items-center">
+                  {index > 0 && (
+                    <span className="mx-1 text-gray-400 dark:text-gray-600">/</span>
+                  )}
+                  <button
+                    onClick={() => onBreadcrumbClick?.(segment.path)}
+                    className="rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <span className="text-gray-700 dark:text-gray-300">{segment.name}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File List */}
+      <div className="p-4">
+        <div className="space-y-1">
+          {sortedFiles.map((file) => renderFileItem(file))}
+        </div>
       </div>
     </div>
   );
