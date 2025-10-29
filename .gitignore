@@ -88,3 +88,6 @@ docs/api/
 
 # Local development
 .cache/
+
+# Claude Code local settings
+.claude/settings.local.json
