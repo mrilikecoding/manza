@@ -98,6 +98,10 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
           },
           '.cm-content': {
             minHeight: '100%',
+            padding: '10px',
+          },
+          '.cm-line': {
+            padding: '0 4px',
           },
         }),
       ],
