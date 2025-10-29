@@ -234,6 +234,7 @@ export function AppLayout() {
         )}
         <div className="flex-1 overflow-hidden">
           <MarkdownEditor
+            key={selectedFilePath}
             content={content}
             onChange={handleContentChange}
             onSave={handleSave}
