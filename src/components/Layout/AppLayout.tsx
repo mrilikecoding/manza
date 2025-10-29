@@ -90,6 +90,26 @@ export function AppLayout() {
     }
   }, [selectedFilePath, content]);
 
+  const handleFolderExpand = useCallback(async (folderPath: string): Promise<FileItem[]> => {
+    try {
+      setError(null);
+      const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+        path: folderPath,
+      });
+      // Transform snake_case to camelCase
+      const transformedFiles: FileItem[] = directoryContents.map(file => ({
+        name: file.name,
+        path: file.path,
+        isDirectory: file.is_directory,
+        isMarkdown: file.is_markdown,
+      }));
+      return transformedFiles;
+    } catch (err) {
+      setError(`Error loading directory: ${err}`);
+      return [];
+    }
+  }, []);
+
   return (
     <div
       data-testid="app-layout"
@@ -109,7 +129,12 @@ export function AppLayout() {
           </button>
         </div>
         <div className="flex-1 overflow-auto">
-          <FileExplorer files={files} onFileSelect={handleFileSelect} showDirectoryButton={false} />
+          <FileExplorer
+            files={files}
+            onFileSelect={handleFileSelect}
+            onFolderExpand={handleFolderExpand}
+            showDirectoryButton={false}
+          />
         </div>
       </div>
 
