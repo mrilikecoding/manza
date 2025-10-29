@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { FileExplorer, type FileItem } from '../FileExplorer';
 import { MarkdownEditor } from '../Editor';
 import { MarkdownPreview } from '../Preview';
+import { ResizablePanes } from './ResizablePanes';
 
 // Type from Rust backend (snake_case)
 interface BackendFileItem {
@@ -21,6 +22,8 @@ export function AppLayout() {
   const [content, setContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
 
   const handleSelectDirectory = useCallback(async () => {
     try {
@@ -179,6 +182,14 @@ export function AppLayout() {
 
   const isAtRoot = currentDirectoryPath === rootDirectoryPath;
 
+  const handleCollapseEditor = useCallback(() => {
+    setIsEditorCollapsed(!isEditorCollapsed);
+  }, [isEditorCollapsed]);
+
+  const handleCollapsePreview = useCallback(() => {
+    setIsPreviewCollapsed(!isPreviewCollapsed);
+  }, [isPreviewCollapsed]);
+
   return (
     <div
       data-testid="app-layout"
@@ -212,49 +223,57 @@ export function AppLayout() {
         </div>
       </div>
 
-      {/* Editor Column */}
-      <div
-        data-testid="editor-column"
-        className="flex h-full flex-1 flex-col border-r border-gray-300 dark:border-gray-700"
-      >
-        {error && (
-          <div className="border-b border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
-            {error}
-          </div>
-        )}
-        {selectedFilePath && (
-          <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-            <div className="flex items-center justify-between">
-              <span className="truncate font-mono">{selectedFilePath}</span>
-              {isSaving && (
-                <span className="ml-2 text-xs text-gray-500">Saving...</span>
-              )}
+      {/* Resizable Editor and Preview Panes */}
+      <ResizablePanes
+        isLeftCollapsed={isEditorCollapsed}
+        isRightCollapsed={isPreviewCollapsed}
+        onCollapseLeft={handleCollapseEditor}
+        onCollapseRight={handleCollapsePreview}
+        leftContent={
+          <div
+            data-testid="editor-column"
+            className="flex h-full flex-col border-r border-gray-300 dark:border-gray-700"
+          >
+            {error && (
+              <div className="border-b border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                {error}
+              </div>
+            )}
+            {selectedFilePath && (
+              <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                <div className="flex items-center justify-between">
+                  <span className="truncate font-mono">{selectedFilePath}</span>
+                  {isSaving && (
+                    <span className="ml-2 text-xs text-gray-500">Saving...</span>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="flex-1 overflow-hidden">
+              <MarkdownEditor
+                key={selectedFilePath}
+                content={content}
+                onChange={handleContentChange}
+                onSave={handleSave}
+                filePath={selectedFilePath}
+              />
             </div>
           </div>
-        )}
-        <div className="flex-1 overflow-hidden">
-          <MarkdownEditor
-            key={selectedFilePath}
-            content={content}
-            onChange={handleContentChange}
-            onSave={handleSave}
-            filePath={selectedFilePath}
-          />
-        </div>
-      </div>
-
-      {/* Preview Column */}
-      <div
-        data-testid="preview-column"
-        className="flex h-full flex-1 flex-col overflow-hidden bg-white dark:bg-gray-900"
-      >
-        <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-          Preview
-        </div>
-        <div className="flex-1 overflow-auto">
-          <MarkdownPreview content={content} />
-        </div>
-      </div>
+        }
+        rightContent={
+          <div
+            data-testid="preview-column"
+            className="flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900"
+          >
+            <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+              Preview
+            </div>
+            <div className="flex-1 overflow-auto">
+              <MarkdownPreview content={content} />
+            </div>
+          </div>
+        }
+      />
     </div>
   );
 }
