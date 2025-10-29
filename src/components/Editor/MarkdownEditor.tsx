@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, lineWrapping } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -18,50 +18,50 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
   const [, setEditorReady] = useState(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Custom keymap for markdown shortcuts
-  const markdownKeymap = keymap.of([
-    ...defaultKeymap,
-    ...historyKeymap,
-    {
-      key: 'Mod-s',
-      run: () => {
-        onSave();
-        return true;
-      },
-    },
-    {
-      key: 'Mod-b',
-      run: (view) => {
-        const { from, to } = view.state.selection.main;
-        const selectedText = view.state.sliceDoc(from, to);
-        const boldText = `**${selectedText}**`;
-        view.dispatch({
-          changes: { from, to, insert: boldText },
-          selection: { anchor: from + boldText.length },
-        });
-        return true;
-      },
-    },
-    {
-      key: 'Mod-i',
-      run: (view) => {
-        const { from, to } = view.state.selection.main;
-        const selectedText = view.state.sliceDoc(from, to);
-        const italicText = `*${selectedText}*`;
-        view.dispatch({
-          changes: { from, to, insert: italicText },
-          selection: { anchor: from + italicText.length },
-        });
-        return true;
-      },
-    },
-  ]);
-
   // Initialize editor
   useEffect(() => {
     if (!editorRef.current) {
       return;
     }
+
+    // Custom keymap for markdown shortcuts
+    const markdownKeymap = keymap.of([
+      ...defaultKeymap,
+      ...historyKeymap,
+      {
+        key: 'Mod-s',
+        run: () => {
+          onSave();
+          return true;
+        },
+      },
+      {
+        key: 'Mod-b',
+        run: (view) => {
+          const { from, to } = view.state.selection.main;
+          const selectedText = view.state.sliceDoc(from, to);
+          const boldText = `**${selectedText}**`;
+          view.dispatch({
+            changes: { from, to, insert: boldText },
+            selection: { anchor: from + boldText.length },
+          });
+          return true;
+        },
+      },
+      {
+        key: 'Mod-i',
+        run: (view) => {
+          const { from, to } = view.state.selection.main;
+          const selectedText = view.state.sliceDoc(from, to);
+          const italicText = `*${selectedText}*`;
+          view.dispatch({
+            changes: { from, to, insert: italicText },
+            selection: { anchor: from + italicText.length },
+          });
+          return true;
+        },
+      },
+    ]);
 
     const startState = EditorState.create({
       doc: content,
@@ -86,7 +86,7 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
             }, 2000);
           }
         }),
-        lineWrapping,
+        EditorView.lineWrapping,
         EditorView.theme({
           '&': {
             height: '100%',
@@ -117,6 +117,7 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
         clearTimeout(autoSaveTimerRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update content when filePath or content changes
