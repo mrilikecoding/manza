@@ -181,6 +181,26 @@ export function AppLayout() {
     }
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    if (!currentDirectoryPath) return;
+
+    try {
+      setError(null);
+      const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+        path: currentDirectoryPath,
+      });
+      const transformedFiles: FileItem[] = directoryContents.map(file => ({
+        name: file.name,
+        path: file.path,
+        isDirectory: file.is_directory,
+        isMarkdown: file.is_markdown,
+      }));
+      setFiles(transformedFiles);
+    } catch (err) {
+      setError(`Error refreshing directory: ${err}`);
+    }
+  }, [currentDirectoryPath]);
+
   const isAtRoot = currentDirectoryPath === rootDirectoryPath;
 
   const handleCollapseEditor = useCallback(() => {
@@ -242,6 +262,7 @@ export function AppLayout() {
               onNavigateUp={handleNavigateUp}
               onNavigateInto={handleNavigateInto}
               onBreadcrumbClick={handleBreadcrumbClick}
+              onRefresh={handleRefresh}
               isAtRoot={isAtRoot}
               showDirectoryButton={false}
             />

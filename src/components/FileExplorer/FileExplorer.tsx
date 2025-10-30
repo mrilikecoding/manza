@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api';
+import { FileContextMenu } from './FileContextMenu';
+import { FileDialog } from './FileDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export interface FileItem {
   name: string;
@@ -19,6 +22,7 @@ export interface FileExplorerProps {
   onNavigateUp?: () => void;
   onNavigateInto?: (path: string) => void;
   onBreadcrumbClick?: (path: string) => void;
+  onRefresh?: () => void;
   isAtRoot?: boolean;
   showDirectoryButton?: boolean;
 }
@@ -57,6 +61,12 @@ export function FileExplorer({
     });
     return initialMap;
   });
+
+  // State for context menu and dialogs
+  type DialogType = 'create-file' | 'create-folder' | 'rename' | 'delete' | null;
+  const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileItem } | null>(null);
+  const [targetFile, setTargetFile] = useState<FileItem | null>(null);
 
   const handleFolderClick = async (folder: FileItem) => {
     if (!folder.isDirectory) {
@@ -129,6 +139,77 @@ export function FileExplorer({
     if (file.isDirectory && onNavigateInto) {
       onNavigateInto(file.path);
     }
+  };
+
+  // File operation handlers
+  const handleCreateFile = async (filename: string) => {
+    try {
+      const newPath = rootPath ? `${rootPath}/${filename}` : filename;
+      await invoke('create_new_file', { path: newPath });
+      setActiveDialog(null);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to create file:', error);
+    }
+  };
+
+  const handleCreateFolder = async (foldername: string) => {
+    try {
+      const newPath = rootPath ? `${rootPath}/${foldername}` : foldername;
+      await invoke('create_new_directory', { path: newPath });
+      setActiveDialog(null);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+    }
+  };
+
+  const handleRename = async (newName: string) => {
+    if (!targetFile) return;
+
+    try {
+      const parentPath = targetFile.path.substring(0, targetFile.path.lastIndexOf('/'));
+      const newPath = `${parentPath}/${newName}`;
+      await invoke('rename_file_or_directory', { oldPath: targetFile.path, newPath });
+      setActiveDialog(null);
+      setTargetFile(null);
+      setContextMenu(null);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to rename:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!targetFile) return;
+
+    try {
+      if (targetFile.isDirectory) {
+        await invoke('delete_directory_at_path', { path: targetFile.path });
+      } else {
+        await invoke('delete_file_at_path', { path: targetFile.path });
+      }
+      setActiveDialog(null);
+      setTargetFile(null);
+      setContextMenu(null);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to delete:', error);
+    }
+  };
+
+  const handleContextMenuRename = () => {
+    if (!contextMenu) return;
+    setTargetFile(contextMenu.file);
+    setActiveDialog('rename');
+    setContextMenu(null);
+  };
+
+  const handleContextMenuDelete = () => {
+    if (!contextMenu) return;
+    setTargetFile(contextMenu.file);
+    setActiveDialog('delete');
+    setContextMenu(null);
   };
 
   const parseBreadcrumb = (path: string | null): { name: string; path: string }[] => {
@@ -229,6 +310,10 @@ export function FileExplorer({
         data-testid={`file-item-${file.name}`}
         onClick={() => file.isDirectory ? handleFolderClick(file) : handleFileClick(file)}
         onDoubleClick={() => handleFileDoubleClick(file)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenu({ x: e.clientX, y: e.clientY, file });
+        }}
         style={{ paddingLeft: `${paddingLeft}px` }}
         className={`
           flex cursor-pointer items-center rounded px-3 py-2 text-sm
@@ -315,45 +400,91 @@ export function FileExplorer({
       {/* Breadcrumb and Navigation */}
       {rootPath && (
         <div className="sticky top-0 z-10 border-b border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center space-x-2">
-            {/* Navigate Up Button */}
-            <button
-              data-testid="navigate-up-button"
-              onClick={onNavigateUp}
-              disabled={isAtRoot}
-              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
-              title="Go to parent directory"
-            >
-              <svg
-                className="h-5 w-5 text-gray-600 dark:text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {/* Navigate Up Button */}
+              <button
+                data-testid="navigate-up-button"
+                onClick={onNavigateUp}
+                disabled={isAtRoot}
+                className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
+                title="Go to parent directory"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 10l7-7m0 0l7 7m-7-7v18"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 10l7-7m0 0l7 7m-7-7v18"
+                  />
+                </svg>
+              </button>
 
-            {/* Breadcrumb */}
-            <div data-testid="breadcrumb" className="flex items-center space-x-1 text-sm">
-              {breadcrumbSegments.map((segment, index) => (
-                <div key={segment.path} className="flex items-center">
-                  {index > 0 && (
-                    <span className="mx-1 text-gray-400 dark:text-gray-600">/</span>
-                  )}
-                  <button
-                    onClick={() => onBreadcrumbClick?.(segment.path)}
-                    className="rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  >
-                    <span className="text-gray-700 dark:text-gray-300">{segment.name}</span>
-                  </button>
-                </div>
-              ))}
+              {/* Breadcrumb */}
+              <div data-testid="breadcrumb" className="flex items-center space-x-1 text-sm">
+                {breadcrumbSegments.map((segment, index) => (
+                  <div key={segment.path} className="flex items-center">
+                    {index > 0 && (
+                      <span className="mx-1 text-gray-400 dark:text-gray-600">/</span>
+                    )}
+                    <button
+                      onClick={() => onBreadcrumbClick?.(segment.path)}
+                      className="rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <span className="text-gray-700 dark:text-gray-300">{segment.name}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Toolbar buttons */}
+            <div className="flex items-center space-x-1">
+              <button
+                data-testid="new-file-button"
+                onClick={() => setActiveDialog('create-file')}
+                className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="New File"
+              >
+                <svg
+                  className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </button>
+              <button
+                data-testid="new-folder-button"
+                onClick={() => setActiveDialog('create-folder')}
+                className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="New Folder"
+              >
+                <svg
+                  className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -365,6 +496,69 @@ export function FileExplorer({
           {sortedFiles.map((file) => renderFileItem(file))}
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <FileContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isDirectory={contextMenu.file.isDirectory}
+          fileName={contextMenu.file.name}
+          onClose={() => setContextMenu(null)}
+          onRename={handleContextMenuRename}
+          onDelete={handleContextMenuDelete}
+        />
+      )}
+
+      {/* Create File Dialog */}
+      {activeDialog === 'create-file' && (
+        <FileDialog
+          title="Create New File"
+          placeholder="Enter file name (e.g., document.md)"
+          onConfirm={handleCreateFile}
+          onCancel={() => setActiveDialog(null)}
+        />
+      )}
+
+      {/* Create Folder Dialog */}
+      {activeDialog === 'create-folder' && (
+        <FileDialog
+          title="Create New Folder"
+          placeholder="Enter folder name"
+          onConfirm={handleCreateFolder}
+          onCancel={() => setActiveDialog(null)}
+        />
+      )}
+
+      {/* Rename Dialog */}
+      {activeDialog === 'rename' && targetFile && (
+        <FileDialog
+          title={`Rename ${targetFile.isDirectory ? 'Folder' : 'File'}`}
+          placeholder="Enter new name"
+          defaultValue={targetFile.name}
+          onConfirm={handleRename}
+          onCancel={() => {
+            setActiveDialog(null);
+            setTargetFile(null);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {activeDialog === 'delete' && targetFile && (
+        <ConfirmDialog
+          title={`Delete ${targetFile.isDirectory ? 'Folder' : 'File'}`}
+          message={`Are you sure you want to delete "${targetFile.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          isDangerous={true}
+          onConfirm={handleDelete}
+          onCancel={() => {
+            setActiveDialog(null);
+            setTargetFile(null);
+          }}
+        />
+      )}
     </div>
   );
 }
