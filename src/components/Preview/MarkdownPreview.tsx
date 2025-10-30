@@ -8,6 +8,7 @@ import { isInlineCode } from 'react-shiki';
 import 'github-markdown-css/github-markdown-light.css';
 import 'katex/dist/katex.min.css';
 import { CodeBlock } from './CodeBlock';
+import { MermaidDiagram } from './MermaidDiagram';
 
 export interface MarkdownPreviewProps {
   content: string;
@@ -67,7 +68,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
             }
             return <input {...props} />;
           },
-          // Syntax highlighting for code blocks
+          // Syntax highlighting for code blocks and Mermaid diagrams
           code: ({ node, className, children, ...props }) => {
             // Check if this is inline code
             if (isInlineCode(node)) {
@@ -81,6 +82,12 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
             // Get the code content as a string
             const codeContent = String(children).replace(/\n$/, '');
 
+            // Check if this is a Mermaid diagram
+            if (language === 'mermaid') {
+              return <MermaidDiagram chart={codeContent} />;
+            }
+
+            // Otherwise, render with syntax highlighting
             return <CodeBlock code={codeContent} language={language} />;
           },
         }}
