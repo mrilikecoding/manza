@@ -99,6 +99,66 @@ pub fn write_file(path: &str, content: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Create a new file with empty content
+pub fn create_file(path: &str) -> Result<(), String> {
+    write_file(path, "")
+}
+
+/// Create a new directory
+pub fn create_directory(path: &str) -> Result<(), String> {
+    fs::create_dir_all(path)
+        .map_err(|e| format!("Failed to create directory: {}", e))
+}
+
+/// Delete a file
+pub fn delete_file(path: &str) -> Result<(), String> {
+    let file_path = PathBuf::from(path);
+
+    if !file_path.exists() {
+        return Err(format!("File does not exist: {}", path));
+    }
+
+    if file_path.is_dir() {
+        return Err(format!("Path is a directory, not a file: {}", path));
+    }
+
+    fs::remove_file(&file_path)
+        .map_err(|e| format!("Failed to delete file: {}", e))
+}
+
+/// Delete a directory and all its contents
+pub fn delete_directory(path: &str) -> Result<(), String> {
+    let dir_path = PathBuf::from(path);
+
+    if !dir_path.exists() {
+        return Err(format!("Directory does not exist: {}", path));
+    }
+
+    if !dir_path.is_dir() {
+        return Err(format!("Path is not a directory: {}", path));
+    }
+
+    fs::remove_dir_all(&dir_path)
+        .map_err(|e| format!("Failed to delete directory: {}", e))
+}
+
+/// Rename/move a file or directory
+pub fn rename_path(old_path: &str, new_path: &str) -> Result<(), String> {
+    let old = PathBuf::from(old_path);
+    let new = PathBuf::from(new_path);
+
+    if !old.exists() {
+        return Err(format!("Source path does not exist: {}", old_path));
+    }
+
+    if new.exists() {
+        return Err(format!("Destination path already exists: {}", new_path));
+    }
+
+    fs::rename(&old, &new)
+        .map_err(|e| format!("Failed to rename: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

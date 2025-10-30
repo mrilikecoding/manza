@@ -4,7 +4,10 @@
 use tauri::Manager;
 
 mod fs;
-use fs::{read_directory, read_file, write_file, FileItem};
+use fs::{
+    create_directory, create_file, delete_directory, delete_file, read_directory, read_file,
+    rename_path, write_file, FileItem,
+};
 
 /// Tauri command to read directory contents
 #[tauri::command]
@@ -35,13 +38,48 @@ fn save_file_contents(path: String, content: String) -> Result<(), String> {
     write_file(&path, &content)
 }
 
+/// Tauri command to create a new file
+#[tauri::command]
+fn create_new_file(path: String) -> Result<(), String> {
+    create_file(&path)
+}
+
+/// Tauri command to create a new directory
+#[tauri::command]
+fn create_new_directory(path: String) -> Result<(), String> {
+    create_directory(&path)
+}
+
+/// Tauri command to delete a file
+#[tauri::command]
+fn delete_file_at_path(path: String) -> Result<(), String> {
+    delete_file(&path)
+}
+
+/// Tauri command to delete a directory
+#[tauri::command]
+fn delete_directory_at_path(path: String) -> Result<(), String> {
+    delete_directory(&path)
+}
+
+/// Tauri command to rename/move a file or directory
+#[tauri::command]
+fn rename_file_or_directory(old_path: String, new_path: String) -> Result<(), String> {
+    rename_path(&old_path, &new_path)
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_directory_contents,
             select_directory,
             read_file_contents,
-            save_file_contents
+            save_file_contents,
+            create_new_file,
+            create_new_directory,
+            delete_file_at_path,
+            delete_directory_at_path,
+            rename_file_or_directory
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]
