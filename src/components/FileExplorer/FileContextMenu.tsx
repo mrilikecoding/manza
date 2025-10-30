@@ -8,6 +8,8 @@ export interface FileContextMenuProps {
   onClose: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onNewFileInFolder?: () => void;
+  onNewFolderInFolder?: () => void;
 }
 
 export function FileContextMenu({
@@ -18,6 +20,8 @@ export function FileContextMenu({
   onClose,
   onRename,
   onDelete,
+  onNewFileInFolder,
+  onNewFolderInFolder,
 }: FileContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +54,30 @@ export function FileContextMenu({
       className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg py-1 min-w-[160px]"
       style={{ top: y, left: x }}
     >
+      {/* Folder-specific options */}
+      {isDirectory && onNewFileInFolder && (
+        <button
+          onClick={onNewFileInFolder}
+          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+        >
+          New File in {fileName}
+        </button>
+      )}
+      {isDirectory && onNewFolderInFolder && (
+        <button
+          onClick={onNewFolderInFolder}
+          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+        >
+          New Folder in {fileName}
+        </button>
+      )}
+
+      {/* Separator if folder has special options */}
+      {isDirectory && (onNewFileInFolder || onNewFolderInFolder) && (
+        <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+      )}
+
+      {/* Standard options */}
       <button
         onClick={onRename}
         className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"

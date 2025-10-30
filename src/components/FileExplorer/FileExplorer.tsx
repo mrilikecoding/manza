@@ -68,6 +68,7 @@ export function FileExplorer({
   const [activeDialog, setActiveDialog] = useState<DialogType>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileItem } | null>(null);
   const [targetFile, setTargetFile] = useState<FileItem | null>(null);
+  const [targetFolder, setTargetFolder] = useState<FileItem | null>(null); // For creating files/folders inside a specific folder
 
   // Click handling with delay to distinguish single from double clicks
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -174,9 +175,12 @@ export function FileExplorer({
   // File operation handlers
   const handleCreateFile = async (filename: string) => {
     try {
-      const newPath = rootPath ? `${rootPath}/${filename}` : filename;
+      // If targetFolder is set, create in that folder, otherwise create in current directory
+      const basePath = targetFolder ? targetFolder.path : rootPath;
+      const newPath = basePath ? `${basePath}/${filename}` : filename;
       await invoke('create_new_file', { path: newPath });
       setActiveDialog(null);
+      setTargetFolder(null);
       onRefresh?.();
     } catch (error) {
       console.error('Failed to create file:', error);
@@ -185,9 +189,12 @@ export function FileExplorer({
 
   const handleCreateFolder = async (foldername: string) => {
     try {
-      const newPath = rootPath ? `${rootPath}/${foldername}` : foldername;
+      // If targetFolder is set, create in that folder, otherwise create in current directory
+      const basePath = targetFolder ? targetFolder.path : rootPath;
+      const newPath = basePath ? `${basePath}/${foldername}` : foldername;
       await invoke('create_new_directory', { path: newPath });
       setActiveDialog(null);
+      setTargetFolder(null);
       onRefresh?.();
     } catch (error) {
       console.error('Failed to create folder:', error);
@@ -239,6 +246,20 @@ export function FileExplorer({
     if (!contextMenu) return;
     setTargetFile(contextMenu.file);
     setActiveDialog('delete');
+    setContextMenu(null);
+  };
+
+  const handleContextMenuNewFileInFolder = () => {
+    if (!contextMenu || !contextMenu.file.isDirectory) return;
+    setTargetFolder(contextMenu.file);
+    setActiveDialog('create-file');
+    setContextMenu(null);
+  };
+
+  const handleContextMenuNewFolderInFolder = () => {
+    if (!contextMenu || !contextMenu.file.isDirectory) return;
+    setTargetFolder(contextMenu.file);
+    setActiveDialog('create-folder');
     setContextMenu(null);
   };
 
@@ -494,26 +515,34 @@ export function FileExplorer({
           onClose={() => setContextMenu(null)}
           onRename={handleContextMenuRename}
           onDelete={handleContextMenuDelete}
+          onNewFileInFolder={contextMenu.file.isDirectory ? handleContextMenuNewFileInFolder : undefined}
+          onNewFolderInFolder={contextMenu.file.isDirectory ? handleContextMenuNewFolderInFolder : undefined}
         />
       )}
 
       {/* Create File Dialog */}
       {activeDialog === 'create-file' && (
         <FileDialog
-          title="Create New File"
+          title={targetFolder ? `Create New File in ${targetFolder.name}` : 'Create New File'}
           placeholder="Enter file name (e.g., document.md)"
           onConfirm={handleCreateFile}
-          onCancel={() => setActiveDialog(null)}
+          onCancel={() => {
+            setActiveDialog(null);
+            setTargetFolder(null);
+          }}
         />
       )}
 
       {/* Create Folder Dialog */}
       {activeDialog === 'create-folder' && (
         <FileDialog
-          title="Create New Folder"
+          title={targetFolder ? `Create New Folder in ${targetFolder.name}` : 'Create New Folder'}
           placeholder="Enter folder name"
           onConfirm={handleCreateFolder}
-          onCancel={() => setActiveDialog(null)}
+          onCancel={() => {
+            setActiveDialog(null);
+            setTargetFolder(null);
+          }}
         />
       )}
 
