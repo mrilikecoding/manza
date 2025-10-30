@@ -300,7 +300,7 @@ export function AppLayout() {
                 </div>
               </div>
             )}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1">
               <MarkdownEditor
                 key={selectedFilePath}
                 content={content}
@@ -314,12 +314,12 @@ export function AppLayout() {
         rightContent={
           <div
             data-testid="preview-column"
-            className="flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900"
+            className="flex h-full flex-col bg-white dark:bg-gray-900"
           >
             <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
               Preview
             </div>
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1">
               <MarkdownPreview content={content} />
             </div>
           </div>

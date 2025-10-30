@@ -78,7 +78,7 @@ export function ResizablePanes({
       {/* Left Pane */}
       <div
         data-testid="left-pane"
-        className={`flex flex-col ${isLeftCollapsed ? 'hidden' : ''}`}
+        className={`flex h-full flex-col ${isLeftCollapsed ? 'hidden' : ''}`}
         style={{
           width: isLeftCollapsed ? '0%' : isRightCollapsed ? '100%' : `${leftWidth}%`,
           minWidth: isLeftCollapsed ? '0' : '20%',
@@ -110,7 +110,7 @@ export function ResizablePanes({
             </button>
           </div>
         )}
-        <div className="flex-1">{leftContent}</div>
+        <div className="flex-1 overflow-auto">{leftContent}</div>
       </div>
 
       {/* Expand Left Button (shown when left is collapsed) */}
@@ -178,7 +178,7 @@ export function ResizablePanes({
       {/* Right Pane */}
       <div
         data-testid="right-pane"
-        className={`flex flex-col ${isRightCollapsed ? 'hidden' : ''}`}
+        className={`flex h-full flex-col ${isRightCollapsed ? 'hidden' : ''}`}
         style={{
           width: isRightCollapsed ? '0%' : isLeftCollapsed ? '100%' : `${rightWidth}%`,
           minWidth: isRightCollapsed ? '0' : '20%',
@@ -210,7 +210,7 @@ export function ResizablePanes({
             </button>
           </div>
         )}
-        <div className="flex-1">{rightContent}</div>
+        <div className="flex-1 overflow-auto">{rightContent}</div>
       </div>
     </div>
   );

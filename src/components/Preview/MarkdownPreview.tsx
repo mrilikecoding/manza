@@ -1,8 +1,13 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
+import { isInlineCode } from 'react-shiki';
 import 'github-markdown-css/github-markdown-light.css';
+import 'katex/dist/katex.min.css';
+import { CodeBlock } from './CodeBlock';
 
 export interface MarkdownPreviewProps {
   content: string;
@@ -49,11 +54,11 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
   return (
     <div
       data-testid="markdown-preview"
-      className="markdown-body h-full w-full overflow-auto bg-white p-8 dark:bg-gray-900"
+      className="markdown-body h-full overflow-auto bg-white p-8 dark:bg-gray-900"
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
         components={{
           // Custom rendering for task lists
           input: ({ node, ...props }) => {
@@ -61,6 +66,22 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
               return <input {...props} disabled />;
             }
             return <input {...props} />;
+          },
+          // Syntax highlighting for code blocks
+          code: ({ node, className, children, ...props }) => {
+            // Check if this is inline code
+            if (isInlineCode(node)) {
+              return <code className={className} {...props}>{children}</code>;
+            }
+
+            // Extract language from className (format: "language-javascript")
+            const match = /language-(\w+)/.exec(className || '');
+            const language = match ? match[1] : 'plaintext';
+
+            // Get the code content as a string
+            const codeContent = String(children).replace(/\n$/, '');
+
+            return <CodeBlock code={codeContent} language={language} />;
           },
         }}
       >

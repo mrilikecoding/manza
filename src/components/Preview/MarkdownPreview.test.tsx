@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MarkdownPreview } from './MarkdownPreview';
 
 /**
@@ -229,11 +229,14 @@ describe('MarkdownPreview - Unit Tests (TDD)', () => {
   });
 
   describe('Code Blocks', () => {
-    it('should render code blocks', () => {
+    it('should render code blocks', async () => {
       const content = '```javascript\nconst x = 1;\n```';
-      const { container } = render(<MarkdownPreview content={content} />);
+      render(<MarkdownPreview content={content} />);
 
-      expect(container.querySelector('code')).toBeInTheDocument();
+      // Code should be rendered (either with syntax highlighting or fallback)
+      await waitFor(() => {
+        expect(screen.getByText('const x = 1;')).toBeInTheDocument();
+      });
     });
 
     it('should render inline code', () => {

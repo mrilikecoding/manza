@@ -198,7 +198,7 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
       <div
         ref={editorRef}
         data-testid="editor-content"
-        className="h-full w-full flex-1 overflow-auto"
+        className="w-full flex-1 overflow-auto"
       />
     </div>
   );
