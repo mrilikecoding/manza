@@ -1,0 +1,16 @@
+<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="180" fill="#2563eb"/>
+
+  <!-- Markdown "M" symbol -->
+  <g transform="translate(512, 512)">
+    <!-- Main M shape -->
+    <path d="M -200,-250 L -200,250 L -100,250 L -100,0 L 0,150 L 100,0 L 100,250 L 200,250 L 200,-250 L 100,-250 L 0,0 L -100,-250 Z"
+          fill="white"
+          stroke="none"/>
+  </g>
+
+  <!-- Subtle manzanita branch accent (optional) -->
+  <circle cx="850" cy="850" r="60" fill="rgba(255,255,255,0.2)"/>
+  <circle cx="800" cy="780" r="45" fill="rgba(255,255,255,0.15)"/>
+</svg>

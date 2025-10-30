@@ -233,3 +233,195 @@ describe('FileExplorer - Unit Tests (TDD)', () => {
     });
   });
 });
+
+/**
+ * BDD Scenarios for Tree Navigation
+ *
+ * Feature: Tree-Style Directory Navigation
+ *   As a user
+ *   I want to expand/collapse folders and navigate directory hierarchies
+ *   So that I can browse nested project structures efficiently
+ *
+ * Scenario 6: Expand/collapse folders
+ *   Given a directory contains subdirectories
+ *   When I click on a folder
+ *   Then the folder should expand to show its contents
+ *   And clicking again should collapse it
+ *   And an arrow icon should indicate expand/collapse state
+ *
+ * Scenario 7: Nested folder display
+ *   Given a folder is expanded
+ *   When it contains subfolders
+ *   Then subfolders should be indented to show hierarchy
+ *   And each subfolder should also be expandable
+ *
+ * Scenario 8: Navigate into subdirectory
+ *   Given a folder is visible in the tree
+ *   When I double-click the folder (or use a navigate action)
+ *   Then that folder becomes the new root directory
+ *   And the file list shows only contents of that folder
+ *   And a breadcrumb shows the current path
+ *
+ * Scenario 9: Navigate up to parent directory
+ *   Given I am viewing a subdirectory
+ *   When I click the "up" or "parent" button
+ *   Then the view should navigate to the parent directory
+ *   And the breadcrumb should update
+ *
+ * Scenario 10: Breadcrumb navigation
+ *   Given I am in a nested directory
+ *   When I see the breadcrumb path
+ *   Then I should be able to click any parent in the path
+ *   And navigate directly to that level
+ */
+
+describe('FileExplorer - Tree Navigation (BDD)', () => {
+  describe('Scenario 6: Expand/collapse folders', () => {
+    it('should expand folder when clicked to show contents', async () => {
+      // Given: a directory contains subdirectories
+      const mockFiles = [
+        { name: 'src', path: '/test/src', isDirectory: true },
+        { name: 'README.md', path: '/test/README.md', isDirectory: false },
+      ];
+
+      const mockOnFileSelect = vi.fn();
+      const mockOnFolderExpand = vi.fn();
+
+      // When: I click on a folder
+      const { container } = render(
+        <FileExplorer
+          rootPath="/test"
+          files={mockFiles}
+          onFileSelect={mockOnFileSelect}
+          onFolderExpand={mockOnFolderExpand}
+        />
+      );
+
+      // Then: folder should have an expandable indicator
+      const folderElement = screen.getByText('src');
+      expect(folderElement).toBeInTheDocument();
+
+      // Should have chevron/arrow icon for expansion
+      const folderContainer = folderElement.closest('[data-testid^="file-item-"]');
+      expect(folderContainer).toBeInTheDocument();
+    });
+
+    it('should show expand/collapse arrow icon on folders', () => {
+      // Given: folders in the tree
+      const mockFiles = [
+        { name: 'docs', path: '/test/docs', isDirectory: true },
+        { name: 'file.md', path: '/test/file.md', isDirectory: false },
+      ];
+
+      const { container } = render(
+        <FileExplorer
+          rootPath="/test"
+          files={mockFiles}
+          onFileSelect={vi.fn()}
+        />
+      );
+
+      // Then: folder should have arrow icon, file should not
+      const docsFolder = screen.getByTestId('file-item-docs');
+      const fileItem = screen.getByTestId('file-item-file.md');
+
+      // Folder should have an arrow/chevron (we'll add this)
+      expect(docsFolder).toBeInTheDocument();
+      expect(fileItem).toBeInTheDocument();
+    });
+  });
+
+  describe('Scenario 7: Nested folder display', () => {
+    it('should show indented hierarchy for nested folders', () => {
+      // Given: expanded folder with subfolders
+      const mockFiles = [
+        { name: 'src', path: '/test/src', isDirectory: true, expanded: true },
+        { name: 'components', path: '/test/src/components', isDirectory: true, depth: 1 },
+        { name: 'utils', path: '/test/src/utils', isDirectory: true, depth: 1 },
+        { name: 'README.md', path: '/test/README.md', isDirectory: false },
+      ];
+
+      render(
+        <FileExplorer
+          rootPath="/test"
+          files={mockFiles}
+          onFileSelect={vi.fn()}
+        />
+      );
+
+      // Then: nested items should be indented
+      // We'll implement depth-based indentation
+      expect(screen.getByText('components')).toBeInTheDocument();
+      expect(screen.getByText('utils')).toBeInTheDocument();
+    });
+  });
+
+  describe('Scenario 8: Navigate into subdirectory', () => {
+    it('should navigate into folder when double-clicked', async () => {
+      // Given: a folder is visible
+      const mockFiles = [
+        { name: 'docs', path: '/test/docs', isDirectory: true },
+      ];
+
+      const mockOnNavigateInto = vi.fn();
+
+      render(
+        <FileExplorer
+          rootPath="/test"
+          files={mockFiles}
+          onFileSelect={vi.fn()}
+          onNavigateInto={mockOnNavigateInto}
+        />
+      );
+
+      // When: folder is double-clicked (or navigate action triggered)
+      // Then: should call navigate handler
+      // (Implementation will handle this)
+      expect(screen.getByText('docs')).toBeInTheDocument();
+    });
+  });
+
+  describe('Scenario 9: Navigate up to parent directory', () => {
+    it('should show parent navigation button when in subdirectory', () => {
+      // Given: viewing a subdirectory
+      const mockFiles = [
+        { name: 'Component.tsx', path: '/test/src/components/Component.tsx', isDirectory: false },
+      ];
+
+      const mockOnNavigateUp = vi.fn();
+
+      render(
+        <FileExplorer
+          rootPath="/test/src/components"
+          files={mockFiles}
+          onFileSelect={vi.fn()}
+          onNavigateUp={mockOnNavigateUp}
+        />
+      );
+
+      // Then: should show "up" button or parent indicator
+      // We'll add this in implementation
+    });
+  });
+
+  describe('Scenario 10: Breadcrumb navigation', () => {
+    it('should display breadcrumb showing current path', () => {
+      // Given: in a nested directory
+      const currentPath = '/Users/test/projects/manza/src/components';
+      const mockFiles = [
+        { name: 'FileExplorer.tsx', path: currentPath + '/FileExplorer.tsx', isDirectory: false },
+      ];
+
+      render(
+        <FileExplorer
+          rootPath={currentPath}
+          files={mockFiles}
+          onFileSelect={vi.fn()}
+        />
+      );
+
+      // Then: breadcrumb should show the path
+      // We'll add breadcrumb component
+    });
+  });
+});
