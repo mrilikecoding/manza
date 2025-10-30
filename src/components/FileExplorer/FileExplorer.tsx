@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { FileContextMenu } from './FileContextMenu';
 import { FileDialog } from './FileDialog';
@@ -35,6 +35,7 @@ export function FileExplorer({
   onNavigateUp,
   onNavigateInto,
   onBreadcrumbClick,
+  onRefresh,
   isAtRoot = true,
   showDirectoryButton = true,
 }: FileExplorerProps) {
@@ -67,6 +68,10 @@ export function FileExplorer({
   const [activeDialog, setActiveDialog] = useState<DialogType>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileItem } | null>(null);
   const [targetFile, setTargetFile] = useState<FileItem | null>(null);
+
+  // Click handling with delay to distinguish single from double clicks
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [clickedFile, setClickedFile] = useState<FileItem | null>(null);
 
   const handleFolderClick = async (folder: FileItem) => {
     if (!folder.isDirectory) {
@@ -135,7 +140,32 @@ export function FileExplorer({
     }
   };
 
-  const handleFileDoubleClick = (file: FileItem) => {
+  const handleItemClick = (file: FileItem) => {
+    // Clear any pending single-click action
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+
+    // Delay single-click action to wait for potential double-click
+    clickTimeoutRef.current = setTimeout(() => {
+      if (file.isDirectory) {
+        handleFolderClick(file);
+      } else {
+        handleFileClick(file);
+      }
+      clickTimeoutRef.current = null;
+    }, 250); // 250ms delay
+  };
+
+  const handleItemDoubleClick = (file: FileItem) => {
+    // Clear the pending single-click action
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+
+    // Navigate into directory on double-click
     if (file.isDirectory && onNavigateInto) {
       onNavigateInto(file.path);
     }
@@ -308,8 +338,8 @@ export function FileExplorer({
       <div
         key={file.path}
         data-testid={`file-item-${file.name}`}
-        onClick={() => file.isDirectory ? handleFolderClick(file) : handleFileClick(file)}
-        onDoubleClick={() => handleFileDoubleClick(file)}
+        onClick={() => handleItemClick(file)}
+        onDoubleClick={() => handleItemDoubleClick(file)}
         onContextMenu={(e) => {
           e.preventDefault();
           setContextMenu({ x: e.clientX, y: e.clientY, file });
@@ -395,103 +425,60 @@ export function FileExplorer({
   return (
     <div
       data-testid="file-explorer"
-      className="h-full w-full overflow-auto bg-white dark:bg-gray-900"
+      className="flex h-full w-full flex-col bg-white dark:bg-gray-900"
     >
-      {/* Breadcrumb and Navigation */}
+      {/* Toolbar for New File/Folder */}
       {rootPath && (
-        <div className="sticky top-0 z-10 border-b border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {/* Navigate Up Button */}
-              <button
-                data-testid="navigate-up-button"
-                onClick={onNavigateUp}
-                disabled={isAtRoot}
-                className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
-                title="Go to parent directory"
+        <div className="flex-shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center space-x-2">
+            <button
+              data-testid="new-file-button"
+              onClick={() => setActiveDialog('create-file')}
+              className="flex items-center space-x-1 rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
+              title="New File"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg
-                  className="h-5 w-5 text-gray-600 dark:text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 10l7-7m0 0l7 7m-7-7v18"
-                  />
-                </svg>
-              </button>
-
-              {/* Breadcrumb */}
-              <div data-testid="breadcrumb" className="flex items-center space-x-1 text-sm">
-                {breadcrumbSegments.map((segment, index) => (
-                  <div key={segment.path} className="flex items-center">
-                    {index > 0 && (
-                      <span className="mx-1 text-gray-400 dark:text-gray-600">/</span>
-                    )}
-                    <button
-                      onClick={() => onBreadcrumbClick?.(segment.path)}
-                      className="rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    >
-                      <span className="text-gray-700 dark:text-gray-300">{segment.name}</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Toolbar buttons */}
-            <div className="flex items-center space-x-1">
-              <button
-                data-testid="new-file-button"
-                onClick={() => setActiveDialog('create-file')}
-                className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="New File"
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span>New File</span>
+            </button>
+            <button
+              data-testid="new-folder-button"
+              onClick={() => setActiveDialog('create-folder')}
+              className="flex items-center space-x-1 rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
+              title="New Folder"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg
-                  className="h-5 w-5 text-gray-600 dark:text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </button>
-              <button
-                data-testid="new-folder-button"
-                onClick={() => setActiveDialog('create-folder')}
-                className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                title="New Folder"
-              >
-                <svg
-                  className="h-5 w-5 text-gray-600 dark:text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </button>
-            </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                />
+              </svg>
+              <span>New Folder</span>
+            </button>
           </div>
         </div>
       )}
 
       {/* File List */}
-      <div className="p-4">
+      <div className="flex-1 overflow-auto p-4">
         <div className="space-y-1">
           {sortedFiles.map((file) => renderFileItem(file))}
         </div>
