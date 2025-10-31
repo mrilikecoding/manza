@@ -74,6 +74,31 @@ export function FileExplorer({
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [clickedFile, setClickedFile] = useState<FileItem | null>(null);
 
+  // Drag and drop state
+  const [draggedItem, setDraggedItem] = useState<FileItem | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null); // path of folder being dragged over
+
+  // Helper function to reload an expanded folder's contents
+  const reloadExpandedFolder = async (folderPath: string) => {
+    if (!expandedFiles.has(folderPath)) {
+      // Folder not expanded, no need to reload
+      return;
+    }
+
+    if (!onFolderExpand) {
+      return;
+    }
+
+    try {
+      const children = await onFolderExpand(folderPath);
+      const newCache = new Map(childrenCache);
+      newCache.set(folderPath, children);
+      setChildrenCache(newCache);
+    } catch (error) {
+      console.error('Failed to reload expanded folder:', error);
+    }
+  };
+
   const handleFolderClick = async (folder: FileItem) => {
     if (!folder.isDirectory) {
       return;
@@ -263,6 +288,207 @@ export function FileExplorer({
     setContextMenu(null);
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, file: FileItem) => {
+    e.stopPropagation();
+    setDraggedItem(file);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', file.path);
+  };
+
+  const handleDragOver = (e: React.DragEvent, file: FileItem) => {
+    // Always prevent default to enable drop
+    e.preventDefault();
+
+    // Only allow drop on folders, not files
+    if (!file.isDirectory) {
+      e.dataTransfer.dropEffect = 'none';
+      // Don't stop propagation - let it bubble to root
+      return;
+    }
+
+    // Don't allow dropping on itself
+    if (draggedItem && draggedItem.path === file.path) {
+      e.dataTransfer.dropEffect = 'none';
+      // Don't stop propagation
+      return;
+    }
+
+    // For folders, stop propagation so root handler doesn't interfere
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget(file.path);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, file: FileItem) => {
+    e.stopPropagation();
+    // Only clear if we're actually leaving this element (not entering a child)
+    if (e.currentTarget === e.target) {
+      setDropTarget(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetFolder: FileItem) => {
+    // If dropping on a non-folder, let it bubble up to the root handler
+    if (!targetFolder.isDirectory) {
+      setDropTarget(null);
+      return; // Don't prevent default - let it bubble
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+
+    if (!draggedItem) {
+      return;
+    }
+
+    // Don't allow dropping on itself
+    if (draggedItem.path === targetFolder.path) {
+      return;
+    }
+
+    try {
+      // Get the filename from the dragged item path
+      const fileName = draggedItem.path.substring(draggedItem.path.lastIndexOf('/') + 1);
+      const newPath = `${targetFolder.path}/${fileName}`;
+
+      // Use the rename command to move the file/folder
+      await invoke('rename_file_or_directory', {
+        oldPath: draggedItem.path,
+        newPath: newPath,
+      });
+
+      // Refresh the file list
+      onRefresh?.();
+      setDraggedItem(null);
+    } catch (error) {
+      console.error('Failed to move item:', error);
+    }
+  };
+
+  const handleDragEnd = async (e: React.DragEvent) => {
+    // If we have a dropTarget set but drop event never fired, manually trigger the move
+    if (dropTarget && draggedItem) {
+      if (dropTarget === '__root__') {
+        // Move to root
+        if (!rootPath) {
+          setDraggedItem(null);
+          setDropTarget(null);
+          return;
+        }
+
+        const parentPath = draggedItem.path.substring(0, draggedItem.path.lastIndexOf('/'));
+        if (parentPath === rootPath) {
+          setDraggedItem(null);
+          setDropTarget(null);
+          return;
+        }
+
+        try {
+          const fileName = draggedItem.path.substring(draggedItem.path.lastIndexOf('/') + 1);
+          const newPath = `${rootPath}/${fileName}`;
+
+          await invoke('rename_file_or_directory', {
+            oldPath: draggedItem.path,
+            newPath: newPath,
+          });
+
+          // Reload all expanded folders to show updated contents
+          const sourceFolder = draggedItem.path.substring(0, draggedItem.path.lastIndexOf('/'));
+          await reloadExpandedFolder(sourceFolder);
+
+          // Also refresh the current directory
+          onRefresh?.();
+        } catch (error) {
+          console.error('Failed to move item to root:', error);
+        }
+      } else {
+        // Move to folder
+        const targetFolder = files.find(f => f.path === dropTarget);
+        if (!targetFolder || !targetFolder.isDirectory) {
+          setDraggedItem(null);
+          setDropTarget(null);
+          return;
+        }
+
+        try {
+          const fileName = draggedItem.path.substring(draggedItem.path.lastIndexOf('/') + 1);
+          const newPath = `${targetFolder.path}/${fileName}`;
+
+          await invoke('rename_file_or_directory', {
+            oldPath: draggedItem.path,
+            newPath: newPath,
+          });
+
+          // Reload both source and destination folders if they're expanded
+          const sourceFolder = draggedItem.path.substring(0, draggedItem.path.lastIndexOf('/'));
+          await reloadExpandedFolder(sourceFolder);
+          await reloadExpandedFolder(targetFolder.path);
+
+          // Also refresh the current directory
+          onRefresh?.();
+        } catch (error) {
+          console.error('Failed to move item:', error);
+        }
+      }
+    }
+
+    setDraggedItem(null);
+    setDropTarget(null);
+  };
+
+  // Drop on root directory (file list background)
+  const handleDropOnRoot = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+
+    if (!draggedItem || !rootPath) {
+      return;
+    }
+
+    // Check if the item is already in the root (parent path matches rootPath)
+    const parentPath = draggedItem.path.substring(0, draggedItem.path.lastIndexOf('/'));
+    if (parentPath === rootPath) {
+      return;
+    }
+
+    try {
+      const fileName = draggedItem.path.substring(draggedItem.path.lastIndexOf('/') + 1);
+      const newPath = `${rootPath}/${fileName}`;
+
+      await invoke('rename_file_or_directory', {
+        oldPath: draggedItem.path,
+        newPath: newPath,
+      });
+
+      onRefresh?.();
+      setDraggedItem(null);
+    } catch (error) {
+      console.error('Failed to move item to root:', error);
+    }
+  };
+
+  const handleDragOverRoot = (e: React.DragEvent) => {
+    if (!draggedItem) {
+      e.preventDefault();
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget('__root__');
+  };
+
+  const handleDragLeaveRoot = (e: React.DragEvent) => {
+    // Only clear if leaving the container itself
+    if (e.currentTarget === e.target) {
+      setDropTarget(null);
+    }
+  };
+
   const parseBreadcrumb = (path: string | null): { name: string; path: string }[] => {
     if (!path) return [];
 
@@ -354,22 +580,32 @@ export function FileExplorer({
 
     const elements: JSX.Element[] = [];
 
+    // Check if this folder is a drop target
+    const isDropTarget = dropTarget === file.path;
+
     // Render the file/folder item
     elements.push(
       <div
         key={file.path}
         data-testid={`file-item-${file.name}`}
+        draggable
         onClick={() => handleItemClick(file)}
         onDoubleClick={() => handleItemDoubleClick(file)}
         onContextMenu={(e) => {
           e.preventDefault();
           setContextMenu({ x: e.clientX, y: e.clientY, file });
         }}
+        onDragStart={(e) => handleDragStart(e, file)}
+        onDragOver={(e) => handleDragOver(e, file)}
+        onDragLeave={(e) => handleDragLeave(e, file)}
+        onDrop={(e) => handleDrop(e, file)}
+        onDragEnd={handleDragEnd}
         style={{ paddingLeft: `${paddingLeft}px` }}
         className={`
           flex cursor-pointer items-center rounded px-3 py-2 text-sm
           transition-colors hover:bg-gray-100 dark:hover:bg-gray-800
           ${file.isDirectory ? 'font-semibold' : ''}
+          ${isDropTarget ? 'bg-blue-50 dark:bg-blue-900 border-2 border-blue-400 dark:border-blue-600' : ''}
         `}
       >
         {/* Chevron for folders */}
@@ -499,8 +735,17 @@ export function FileExplorer({
       )}
 
       {/* File List */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="space-y-1">
+      <div
+        className={`flex-1 overflow-auto p-4 ${dropTarget === '__root__' ? 'bg-blue-50 dark:bg-blue-900' : ''}`}
+        onDragOver={handleDragOverRoot}
+        onDragLeave={handleDragLeaveRoot}
+        onDrop={handleDropOnRoot}
+      >
+        <div
+          className="space-y-1 min-h-full"
+          onDragOver={handleDragOverRoot}
+          onDrop={handleDropOnRoot}
+        >
           {sortedFiles.map((file) => renderFileItem(file))}
         </div>
       </div>
