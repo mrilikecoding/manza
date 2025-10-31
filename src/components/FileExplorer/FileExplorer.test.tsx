@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { FileExplorer } from './FileExplorer';
 
 /**
@@ -181,7 +181,7 @@ describe('FileExplorer - Unit Tests (TDD)', () => {
       expect(screen.getByTestId('file-explorer')).toBeInTheDocument();
     });
 
-    it('should call onFileSelect when a file is clicked', () => {
+    it('should call onFileSelect when a file is clicked', async () => {
       const mockOnSelect = vi.fn();
       const mockFiles = [
         { name: 'test.md', path: '/test/test.md', isDirectory: false },
@@ -198,7 +198,10 @@ describe('FileExplorer - Unit Tests (TDD)', () => {
       const file = screen.getByText('test.md');
       file.click();
 
-      expect(mockOnSelect).toHaveBeenCalledWith('/test/test.md');
+      // Wait for the click delay (250ms)
+      await waitFor(() => {
+        expect(mockOnSelect).toHaveBeenCalledWith('/test/test.md');
+      }, { timeout: 500 });
     });
   });
 

@@ -181,7 +181,41 @@ export function AppLayout() {
     }
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    if (!currentDirectoryPath) return;
+
+    try {
+      setError(null);
+      const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+        path: currentDirectoryPath,
+      });
+      const transformedFiles: FileItem[] = directoryContents.map(file => ({
+        name: file.name,
+        path: file.path,
+        isDirectory: file.is_directory,
+        isMarkdown: file.is_markdown,
+      }));
+      setFiles(transformedFiles);
+    } catch (err) {
+      setError(`Error refreshing directory: ${err}`);
+    }
+  }, [currentDirectoryPath]);
+
   const isAtRoot = currentDirectoryPath === rootDirectoryPath;
+
+  const parseBreadcrumb = (path: string | null): { name: string; path: string }[] => {
+    if (!path) return [];
+
+    const segments = path.split('/').filter(Boolean);
+    const breadcrumb: { name: string; path: string }[] = [];
+
+    segments.forEach((segment, index) => {
+      const segmentPath = '/' + segments.slice(0, index + 1).join('/');
+      breadcrumb.push({ name: segment, path: segmentPath });
+    });
+
+    return breadcrumb;
+  };
 
   const handleCollapseEditor = useCallback(() => {
     setIsEditorCollapsed(!isEditorCollapsed);
@@ -195,11 +229,61 @@ export function AppLayout() {
     setIsFileExplorerCollapsed(!isFileExplorerCollapsed);
   }, [isFileExplorerCollapsed]);
 
+  const breadcrumbSegments = parseBreadcrumb(currentDirectoryPath);
+
   return (
     <div
       data-testid="app-layout"
-      className="flex h-screen w-screen overflow-hidden bg-gray-100 dark:bg-gray-800"
+      className="flex h-screen w-screen flex-col overflow-hidden bg-gray-100 dark:bg-gray-800"
     >
+      {/* Breadcrumb Navigation Bar */}
+      {currentDirectoryPath && (
+        <div className="flex-shrink-0 border-b border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <div className="flex items-center space-x-2">
+            {/* Navigate Up Button */}
+            <button
+              data-testid="navigate-up-button"
+              onClick={handleNavigateUp}
+              disabled={isAtRoot}
+              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
+              title="Go to parent directory"
+            >
+              <svg
+                className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 10l7-7m0 0l7 7m-7-7v18"
+                />
+              </svg>
+            </button>
+
+            {/* Breadcrumb */}
+            <div data-testid="breadcrumb" className="flex items-center space-x-1 text-sm">
+              {breadcrumbSegments.map((segment, index) => (
+                <div key={segment.path} className="flex items-center">
+                  {index > 0 && (
+                    <span className="mx-1 text-gray-400 dark:text-gray-600">/</span>
+                  )}
+                  <button
+                    onClick={() => handleBreadcrumbClick(segment.path)}
+                    className="rounded px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <span className="text-gray-700 dark:text-gray-300">{segment.name}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-1 overflow-hidden">
       {/* File Explorer Column */}
       {!isFileExplorerCollapsed && (
         <div
@@ -242,6 +326,7 @@ export function AppLayout() {
               onNavigateUp={handleNavigateUp}
               onNavigateInto={handleNavigateInto}
               onBreadcrumbClick={handleBreadcrumbClick}
+              onRefresh={handleRefresh}
               isAtRoot={isAtRoot}
               showDirectoryButton={false}
             />
@@ -325,6 +410,7 @@ export function AppLayout() {
           </div>
         }
       />
+      </div>
     </div>
   );
 }
