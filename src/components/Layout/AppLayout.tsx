@@ -32,6 +32,80 @@ export function AppLayout() {
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const [navigationIndex, setNavigationIndex] = useState<number>(-1);
 
+  // Load last directory and file on mount
+  useEffect(() => {
+    const loadLastDirectory = async () => {
+      try {
+        const lastDirectory = localStorage.getItem('manza_last_directory');
+        if (lastDirectory) {
+          // Verify the directory still exists
+          const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+            path: lastDirectory,
+          });
+
+          // Directory exists, load it
+          setRootDirectoryPath(lastDirectory);
+          setCurrentDirectoryPath(lastDirectory);
+          const transformedFiles: FileItem[] = directoryContents.map(file => ({
+            name: file.name,
+            path: file.path,
+            isDirectory: file.is_directory,
+            isMarkdown: file.is_markdown,
+          }));
+          setFiles(transformedFiles);
+
+          // Add to navigation history
+          setNavigationHistory([lastDirectory]);
+          setNavigationIndex(0);
+
+          // Start watching the directory
+          try {
+            await invoke('watch_directory', { path: lastDirectory });
+          } catch (err) {
+            console.error('[File Watcher] Failed to start file watching:', err);
+          }
+
+          // Try to restore last opened file
+          const lastFile = localStorage.getItem('manza_last_file');
+          if (lastFile) {
+            try {
+              const fileContent = await invoke<string>('read_file_contents', {
+                path: lastFile,
+              });
+              setSelectedFilePath(lastFile);
+              setContent(fileContent);
+            } catch (err) {
+              // File no longer exists, clear from storage
+              console.log('Last file not accessible, clearing from storage');
+              localStorage.removeItem('manza_last_file');
+            }
+          }
+        }
+      } catch (err) {
+        // Directory no longer exists or error loading, clear from storage
+        console.log('Last directory not accessible, clearing from storage');
+        localStorage.removeItem('manza_last_directory');
+        localStorage.removeItem('manza_last_file');
+      }
+    };
+
+    loadLastDirectory();
+  }, []); // Run only once on mount
+
+  // Persist current directory whenever it changes
+  useEffect(() => {
+    if (currentDirectoryPath) {
+      localStorage.setItem('manza_last_directory', currentDirectoryPath);
+    }
+  }, [currentDirectoryPath]);
+
+  // Persist selected file whenever it changes
+  useEffect(() => {
+    if (selectedFilePath) {
+      localStorage.setItem('manza_last_file', selectedFilePath);
+    }
+  }, [selectedFilePath]);
+
   // Listen for file system changes
   useEffect(() => {
     let unlisten: (() => void) | undefined;
