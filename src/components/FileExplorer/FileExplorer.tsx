@@ -77,6 +77,10 @@ export function FileExplorer({
   type DialogType = 'create-file' | 'create-folder' | 'rename' | 'delete' | null;
   const [activeDialog, setActiveDialog] = useState<DialogType>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileItem } | null>(null);
+
+  // Filter state
+  const [filterText, setFilterText] = useState('');
+  const [showAllFolders, setShowAllFolders] = useState(false);
   const [targetFile, setTargetFile] = useState<FileItem | null>(null);
   const [targetFolder, setTargetFolder] = useState<FileItem | null>(null); // For creating files/folders inside a specific folder
 
@@ -598,7 +602,8 @@ export function FileExplorer({
   const renderFileItem = (file: FileItem, depth: number = 0): JSX.Element[] => {
     const isMarkdown = !file.isDirectory && isMarkdownFile(file.name);
     const isExpanded = expandedFiles.has(file.path);
-    const children = childrenCache.get(file.path) || [];
+    // Use file.children if available (filtered), otherwise use cache (unfiltered)
+    const children = file.children || childrenCache.get(file.path) || [];
     const paddingLeft = depth * 20; // 20px per level
 
     const elements: JSX.Element[] = [];
@@ -702,23 +707,115 @@ export function FileExplorer({
 
   const breadcrumbSegments = parseBreadcrumb(rootPath);
 
+  // Filter files based on search text (recursively checks all subfolders)
+  const filterFiles = (files: FileItem[]): FileItem[] => {
+    if (!filterText.trim()) return files;
+
+    const searchLower = filterText.toLowerCase();
+
+    const filterRecursiveSync = (file: FileItem): FileItem | null => {
+      const nameMatches = file.name.toLowerCase().includes(searchLower);
+
+      if (file.isDirectory) {
+        const children = childrenCache.get(file.path);
+        if (children) {
+          const filteredChildren = children
+            .map(child => filterRecursiveSync(child))
+            .filter((child): child is FileItem => child !== null);
+
+          // If showAllFolders is enabled, always show directories
+          if (showAllFolders) {
+            return {
+              ...file,
+              children: filteredChildren,
+            };
+          }
+
+          // Otherwise, only show if it matches or has matching children
+          if (nameMatches || filteredChildren.length > 0) {
+            return {
+              ...file,
+              children: filteredChildren,
+            };
+          }
+        } else if (showAllFolders || nameMatches) {
+          // Show folder if showAllFolders is on or if it matches
+          return file;
+        }
+      } else if (nameMatches) {
+        return file;
+      }
+
+      return null;
+    };
+
+    return files
+      .map(file => filterRecursiveSync(file))
+      .filter((file): file is FileItem => file !== null);
+  };
+
+  const filteredFiles = filterFiles(sortedFiles);
+
   return (
     <div
       data-testid="file-explorer"
       className="flex h-full w-full flex-col bg-white dark:bg-gray-900"
     >
-      {/* Toolbar for New File/Folder */}
-      {rootPath && (
-        <div className="flex-shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-          <div className="flex items-center space-x-2">
+      {/* Filter Input */}
+      <div className="flex h-11 items-center border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800">
+        <svg
+          className="h-5 w-5 text-gray-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        <input
+          type="text"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+          placeholder="Filter files..."
+          className="ml-2 flex-1 border-0 bg-transparent text-sm text-gray-900 placeholder-gray-500 focus:outline-none dark:text-gray-100 dark:placeholder-gray-400"
+        />
+        {/* Toggle to show all folders */}
+        <button
+          onClick={() => setShowAllFolders(!showAllFolders)}
+          className={`ml-2 mr-2 rounded p-1 ${
+            showAllFolders
+              ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+          }`}
+          title={showAllFolders ? "Showing all folders (click to hide empty folders)" : "Hiding empty folders (click to show all folders)"}
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+            />
+          </svg>
+        </button>
+        {filterText && (
+          <>
+            {/* Clear filter button */}
             <button
-              data-testid="new-file-button"
-              onClick={() => setActiveDialog('create-file')}
-              className="rounded p-2 text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
-              title="New File"
+              onClick={() => setFilterText('')}
+              className="ml-2 rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <svg
-                className="h-4 w-4"
+                className="h-5 w-5 text-gray-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -727,33 +824,13 @@ export function FileExplorer({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
             </button>
-            <button
-              data-testid="new-folder-button"
-              onClick={() => setActiveDialog('create-folder')}
-              className="rounded p-2 text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
-              title="New Folder"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
       {/* File List */}
       <div
@@ -767,7 +844,7 @@ export function FileExplorer({
           onDragOver={handleDragOverRoot}
           onDrop={handleDropOnRoot}
         >
-          {sortedFiles.map((file) => renderFileItem(file))}
+          {filteredFiles.map((file) => renderFileItem(file))}
         </div>
       </div>
 

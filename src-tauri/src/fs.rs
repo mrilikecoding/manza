@@ -96,6 +96,10 @@ pub fn write_file(path: &str, content: &str) -> Result<(), String> {
     file.write_all(content.as_bytes())
         .map_err(|e| format!("Failed to write to file: {}", e))?;
 
+    // Explicitly flush to ensure data is written to disk
+    file.flush()
+        .map_err(|e| format!("Failed to flush file: {}", e))?;
+
     Ok(())
 }
 

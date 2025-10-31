@@ -1,4 +1,4 @@
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher as NotifyWatcher};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher as NotifyWatcher};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
@@ -80,13 +80,5 @@ impl DirectoryWatcher {
     pub fn stop_watching(&self) {
         *self.debouncer.lock().unwrap() = None;
         *self.watched_path.lock().unwrap() = None;
-    }
-
-    pub fn get_watched_path(&self) -> Option<String> {
-        self.watched_path
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string())
     }
 }

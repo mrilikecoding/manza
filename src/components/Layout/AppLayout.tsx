@@ -3,6 +3,7 @@ import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { FileExplorer, type FileItem } from '../FileExplorer';
+import { FileDialog } from '../FileExplorer/FileDialog';
 import { MarkdownEditor } from '../Editor';
 import { MarkdownPreview } from '../Preview';
 import { ResizablePanes } from './ResizablePanes';
@@ -23,6 +24,7 @@ export function AppLayout() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [content, setContent] = useState<string>('');
+  const [savedContent, setSavedContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
@@ -37,6 +39,22 @@ export function AppLayout() {
 
   // File explorer resize
   const isDraggingExplorerRef = useRef(false);
+
+  // Track if we're reloading from external change to prevent auto-save conflicts
+  const [suppressAutoSave, setSuppressAutoSave] = useState(false);
+
+  // Track if we're currently saving to ignore our own file-change events
+  const isSavingRef = useRef(false);
+
+  // File/folder creation dialog state
+  type DialogType = 'create-file' | 'create-folder' | null;
+  const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+
+  // Auto-save state
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    const saved = localStorage.getItem('manza_autosave_enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
 
   // Handle file explorer resize
   useEffect(() => {
@@ -147,16 +165,12 @@ export function AppLayout() {
 
     const setupListener = async () => {
       unlisten = await listen('file-change', async (event) => {
-        console.log('[File Watcher] Change detected:', event.payload);
-
         // Refresh the current directory if it's being watched
         if (currentDirectoryPath) {
-          console.log('[File Watcher] Refreshing directory:', currentDirectoryPath);
           try {
             const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
               path: currentDirectoryPath,
             });
-            console.log('[File Watcher] Got', directoryContents.length, 'items');
             const transformedFiles: FileItem[] = directoryContents.map(file => ({
               name: file.name,
               path: file.path,
@@ -170,16 +184,32 @@ export function AppLayout() {
 
             // If the currently open file was modified, reload it
             if (selectedFilePath) {
-              console.log('[File Watcher] Checking if open file changed:', selectedFilePath);
+              // Skip reload if we just saved the file ourselves
+              if (isSavingRef.current) {
+                return;
+              }
+
               try {
                 const fileContent = await invoke<string>('read_file_contents', {
                   path: selectedFilePath,
                 });
+
+                // Only reload if content actually changed
+                if (fileContent === content) {
+                  return;
+                }
+
+                // Suppress auto-save to prevent overwriting external changes
+                setSuppressAutoSave(true);
                 setContent(fileContent);
-                console.log('[File Watcher] Reloaded open file');
+                setSavedContent(fileContent);
+
+                // Re-enable auto-save after content has been updated
+                setTimeout(() => {
+                  setSuppressAutoSave(false);
+                }, 500);
               } catch (err) {
-                // File might have been deleted
-                console.error('[File Watcher] Failed to reload file:', err);
+                // File might have been deleted - ignore error
               }
             }
           } catch (err) {
@@ -333,6 +363,7 @@ export function AppLayout() {
       });
       setSelectedFilePath(filePath);
       setContent(fileContent);
+      setSavedContent(fileContent);
     } catch (err) {
       setError(`Error loading file: ${err}`);
     }
@@ -349,13 +380,23 @@ export function AppLayout() {
 
     try {
       setIsSaving(true);
+      isSavingRef.current = true;
       setError(null);
       await invoke('save_file_contents', {
         path: selectedFilePath,
         content,
       });
+
+      // Update saved content to match current content
+      setSavedContent(content);
+
+      // Wait a bit before clearing the flag to ignore the file-change event we just caused
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 1000);
     } catch (err) {
       setError(`Error saving file: ${err}`);
+      isSavingRef.current = false;
     } finally {
       setIsSaving(false);
     }
@@ -454,6 +495,12 @@ export function AppLayout() {
   const handleBreadcrumbClick = useCallback(async (path: string) => {
     try {
       setError(null);
+
+      // Open file explorer if it's collapsed
+      if (isFileExplorerCollapsed) {
+        setIsFileExplorerCollapsed(false);
+      }
+
       setCurrentDirectoryPath(path);
       const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
         path,
@@ -502,6 +549,40 @@ export function AppLayout() {
     }
   }, [currentDirectoryPath]);
 
+  const handleCreateFile = useCallback(async (filename: string) => {
+    try {
+      const basePath = currentDirectoryPath;
+      const newPath = basePath ? `${basePath}/${filename}` : filename;
+      await invoke('create_new_file', { path: newPath });
+      setActiveDialog(null);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Failed to create file:', error);
+      setError(`Failed to create file: ${error}`);
+    }
+  }, [currentDirectoryPath]);
+
+  const handleCreateFolder = useCallback(async (foldername: string) => {
+    try {
+      const basePath = currentDirectoryPath;
+      const newPath = basePath ? `${basePath}/${foldername}` : foldername;
+      await invoke('create_new_directory', { path: newPath });
+      setActiveDialog(null);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+      setError(`Failed to create folder: ${error}`);
+    }
+  }, [currentDirectoryPath]);
+
+  const handleToggleAutoSave = useCallback(() => {
+    setAutoSaveEnabled(prev => {
+      const newValue = !prev;
+      localStorage.setItem('manza_autosave_enabled', String(newValue));
+      return newValue;
+    });
+  }, []);
+
   const isAtRoot = currentDirectoryPath === rootDirectoryPath;
 
   const parseBreadcrumb = (path: string | null): { name: string; path: string }[] => {
@@ -541,6 +622,53 @@ export function AppLayout() {
       {currentDirectoryPath && (
         <div className="flex-shrink-0 border-b border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center space-x-2">
+            {/* File/Folder Creation Controls */}
+            <div className="flex items-center space-x-1 border-r border-gray-300 pr-2 dark:border-gray-700">
+              {/* New File Button */}
+              <button
+                data-testid="breadcrumb-new-file-button"
+                onClick={() => setActiveDialog('create-file')}
+                className="rounded p-1 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="New File"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </button>
+
+              {/* New Folder Button */}
+              <button
+                data-testid="breadcrumb-new-folder-button"
+                onClick={() => setActiveDialog('create-folder')}
+                className="rounded p-1 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="New Folder"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  />
+                </svg>
+              </button>
+            </div>
+
             {/* Back Button */}
             <button
               data-testid="navigate-back-button"
@@ -861,6 +989,10 @@ export function AppLayout() {
                 onSave={handleSave}
                 filePath={selectedFilePath}
                 isSaving={isSaving}
+                autoSaveEnabled={autoSaveEnabled}
+                suppressAutoSave={suppressAutoSave}
+                onToggleAutoSave={handleToggleAutoSave}
+                hasUnsavedChanges={content !== savedContent}
               />
             </div>
           </div>
@@ -875,6 +1007,26 @@ export function AppLayout() {
         }
       />
       </div>
+
+      {/* Create File Dialog */}
+      {activeDialog === 'create-file' && (
+        <FileDialog
+          title="Create New File"
+          placeholder="Enter file name (e.g., document.md)"
+          onConfirm={handleCreateFile}
+          onCancel={() => setActiveDialog(null)}
+        />
+      )}
+
+      {/* Create Folder Dialog */}
+      {activeDialog === 'create-folder' && (
+        <FileDialog
+          title="Create New Folder"
+          placeholder="Enter folder name"
+          onConfirm={handleCreateFolder}
+          onCancel={() => setActiveDialog(null)}
+        />
+      )}
     </div>
   );
 }
