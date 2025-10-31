@@ -8,6 +8,7 @@ import { MarkdownEditor } from '../Editor';
 import { MarkdownPreview } from '../Preview';
 import { ResizablePanes } from './ResizablePanes';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSettings } from '../../contexts/SettingsContext';
 
 // Type from Rust backend (snake_case)
 interface BackendFileItem {
@@ -19,6 +20,7 @@ interface BackendFileItem {
 
 export function AppLayout() {
   const { theme, setTheme } = useTheme();
+  const { settings, updateSettings } = useSettings();
   const [rootDirectoryPath, setRootDirectoryPath] = useState<string | null>(null);
   const [currentDirectoryPath, setCurrentDirectoryPath] = useState<string | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -49,12 +51,6 @@ export function AppLayout() {
   // File/folder creation dialog state
   type DialogType = 'create-file' | 'create-folder' | null;
   const [activeDialog, setActiveDialog] = useState<DialogType>(null);
-
-  // Auto-save state
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
-    const saved = localStorage.getItem('manza_autosave_enabled');
-    return saved !== null ? saved === 'true' : true;
-  });
 
   // Handle file explorer resize
   useEffect(() => {
@@ -576,12 +572,8 @@ export function AppLayout() {
   }, [currentDirectoryPath]);
 
   const handleToggleAutoSave = useCallback(() => {
-    setAutoSaveEnabled(prev => {
-      const newValue = !prev;
-      localStorage.setItem('manza_autosave_enabled', String(newValue));
-      return newValue;
-    });
-  }, []);
+    updateSettings({ autoSave: !settings.autoSave });
+  }, [settings.autoSave, updateSettings]);
 
   const isAtRoot = currentDirectoryPath === rootDirectoryPath;
 
@@ -989,7 +981,7 @@ export function AppLayout() {
                 onSave={handleSave}
                 filePath={selectedFilePath}
                 isSaving={isSaving}
-                autoSaveEnabled={autoSaveEnabled}
+                autoSaveEnabled={settings.autoSave}
                 suppressAutoSave={suppressAutoSave}
                 onToggleAutoSave={handleToggleAutoSave}
                 hasUnsavedChanges={content !== savedContent}
