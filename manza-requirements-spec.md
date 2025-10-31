@@ -546,18 +546,18 @@ The following features are explicitly **not** included in the MVP:
 - [x] **Auto-save (2 seconds) and manual save (Cmd+S)**
 - [x] **Error handling for file operations**
 
-### Phase 2: Core Features (Weeks 3-4) - IN PROGRESS
+### Phase 2: Core Features (Weeks 3-4) ✅ COMPLETE
 - [x] GitHub Flavored Markdown support (tables, task lists, strikethrough)
-- [ ] **Resizable panes with draggable dividers**
-- [ ] **Collapsible editor/preview panes**
-- [ ] **Tree-style folder navigation (expand/collapse folders)**
-- [ ] **Navigate up/down directory hierarchy (cd .. and into subdirs)**
-- [ ] **Current directory breadcrumb/path display**
-- [ ] Code syntax highlighting (Shiki integration)
-- [ ] LaTeX rendering (KaTeX)
-- [ ] Mermaid diagram rendering
-- [ ] File operations (create, delete, rename)
-- [ ] File watching and auto-refresh
+- [x] **Resizable panes with draggable dividers**
+- [x] **Collapsible editor/preview panes**
+- [x] **Tree-style folder navigation (expand/collapse folders)**
+- [x] **Navigate up/down directory hierarchy (cd .. and into subdirs)**
+- [x] **Current directory breadcrumb/path display**
+- [x] Code syntax highlighting (Shiki integration)
+- [x] LaTeX rendering (KaTeX)
+- [x] Mermaid diagram rendering
+- [x] File operations (create, delete, rename)
+- [x] File watching and auto-refresh
 
 ### Phase 3: Polish (Weeks 5-6)
 - [ ] Light theme (GitHub light)
