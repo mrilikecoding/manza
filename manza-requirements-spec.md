@@ -567,13 +567,13 @@ The following features are explicitly **not** included in the MVP:
 - [x] File watching and auto-refresh
 
 ### Phase 3: Polish (Weeks 5-6)
-- [ ] Light theme (GitHub light)
-- [ ] Dark theme (GitHub dark)
-- [ ] System theme detection
-- [ ] Keyboard shortcuts implementation
+- [x] Light theme (GitHub light)
+- [x] Dark theme (GitHub dark)
+- [x] System theme detection
+- [x] Auto-save functionality
+- [ ] Keyboard shortcuts implementation (partial: Cmd+S, Cmd+B, Cmd+I working)
 - [ ] Performance optimization (lazy loading, virtualization)
 - [ ] Error handling and user feedback
-- [ ] Auto-save functionality
 
 ### Phase 4: Distribution (Week 7)
 - [ ] Build scripts for all platforms
