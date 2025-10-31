@@ -4,6 +4,7 @@ import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export interface MarkdownEditorProps {
   filePath: string | null;
@@ -13,6 +14,7 @@ export interface MarkdownEditorProps {
 }
 
 export function MarkdownEditor({ filePath, content, onChange, onSave }: MarkdownEditorProps) {
+  const { effectiveTheme } = useTheme();
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [, setEditorReady] = useState(false);
@@ -70,7 +72,7 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
         history(),
         markdown(),
         markdownKeymap,
-        oneDark,
+        ...(effectiveTheme === 'dark' ? [oneDark] : []),
         EditorView.editable.of(true),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -122,7 +124,7 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [effectiveTheme]);
 
   // Update content when filePath or content changes
   useEffect(() => {

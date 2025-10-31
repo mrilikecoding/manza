@@ -5,16 +5,38 @@ import rehypeSanitize from 'rehype-sanitize';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import { isInlineCode } from 'react-shiki';
-import 'github-markdown-css/github-markdown-light.css';
+import { useEffect } from 'react';
 import 'katex/dist/katex.min.css';
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export interface MarkdownPreviewProps {
   content: string;
 }
 
 export function MarkdownPreview({ content }: MarkdownPreviewProps) {
+  const { effectiveTheme } = useTheme();
+
+  // Dynamically load the correct GitHub markdown CSS based on theme
+  useEffect(() => {
+    // Remove existing github markdown stylesheets
+    const existingLinks = document.querySelectorAll('link[href*="github-markdown"]');
+    existingLinks.forEach(link => link.remove());
+
+    // Add the correct stylesheet for the current theme
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = effectiveTheme === 'dark'
+      ? '/node_modules/github-markdown-css/github-markdown-dark.css'
+      : '/node_modules/github-markdown-css/github-markdown-light.css';
+    document.head.appendChild(link);
+
+    return () => {
+      link.remove();
+    };
+  }, [effectiveTheme]);
+
   if (!content || content.trim() === '') {
     return (
       <div
@@ -56,6 +78,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
     <div
       data-testid="markdown-preview"
       className="markdown-body h-full overflow-auto bg-white p-8 dark:bg-gray-900"
+      data-theme={effectiveTheme}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
