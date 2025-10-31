@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { FileExplorer, type FileItem } from '../FileExplorer';
+import { FileDialog } from '../FileExplorer/FileDialog';
 import { MarkdownEditor } from '../Editor';
 import { MarkdownPreview } from '../Preview';
 import { ResizablePanes } from './ResizablePanes';
@@ -23,16 +24,66 @@ export function AppLayout() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [content, setContent] = useState<string>('');
+  const [savedContent, setSavedContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
   const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [fileExplorerWidth, setFileExplorerWidth] = useState(256); // 256px = 16rem = w-64
 
   // Navigation history
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const [navigationIndex, setNavigationIndex] = useState<number>(-1);
+
+  // File explorer resize
+  const isDraggingExplorerRef = useRef(false);
+
+  // Track if we're reloading from external change to prevent auto-save conflicts
+  const [suppressAutoSave, setSuppressAutoSave] = useState(false);
+
+  // Track if we're currently saving to ignore our own file-change events
+  const isSavingRef = useRef(false);
+
+  // File/folder creation dialog state
+  type DialogType = 'create-file' | 'create-folder' | null;
+  const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+
+  // Auto-save state
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    const saved = localStorage.getItem('manza_autosave_enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // Handle file explorer resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingExplorerRef.current) return;
+
+      const newWidth = e.clientX;
+      // Enforce min/max constraints (200px to 600px)
+      const constrainedWidth = Math.min(Math.max(newWidth, 200), 600);
+      setFileExplorerWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingExplorerRef.current = false;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleExplorerResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingExplorerRef.current = true;
+  };
 
   // Load last directory and file on mount
   useEffect(() => {
@@ -114,16 +165,12 @@ export function AppLayout() {
 
     const setupListener = async () => {
       unlisten = await listen('file-change', async (event) => {
-        console.log('[File Watcher] Change detected:', event.payload);
-
         // Refresh the current directory if it's being watched
         if (currentDirectoryPath) {
-          console.log('[File Watcher] Refreshing directory:', currentDirectoryPath);
           try {
             const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
               path: currentDirectoryPath,
             });
-            console.log('[File Watcher] Got', directoryContents.length, 'items');
             const transformedFiles: FileItem[] = directoryContents.map(file => ({
               name: file.name,
               path: file.path,
@@ -137,16 +184,32 @@ export function AppLayout() {
 
             // If the currently open file was modified, reload it
             if (selectedFilePath) {
-              console.log('[File Watcher] Checking if open file changed:', selectedFilePath);
+              // Skip reload if we just saved the file ourselves
+              if (isSavingRef.current) {
+                return;
+              }
+
               try {
                 const fileContent = await invoke<string>('read_file_contents', {
                   path: selectedFilePath,
                 });
+
+                // Only reload if content actually changed
+                if (fileContent === content) {
+                  return;
+                }
+
+                // Suppress auto-save to prevent overwriting external changes
+                setSuppressAutoSave(true);
                 setContent(fileContent);
-                console.log('[File Watcher] Reloaded open file');
+                setSavedContent(fileContent);
+
+                // Re-enable auto-save after content has been updated
+                setTimeout(() => {
+                  setSuppressAutoSave(false);
+                }, 500);
               } catch (err) {
-                // File might have been deleted
-                console.error('[File Watcher] Failed to reload file:', err);
+                // File might have been deleted - ignore error
               }
             }
           } catch (err) {
@@ -300,6 +363,7 @@ export function AppLayout() {
       });
       setSelectedFilePath(filePath);
       setContent(fileContent);
+      setSavedContent(fileContent);
     } catch (err) {
       setError(`Error loading file: ${err}`);
     }
@@ -316,13 +380,23 @@ export function AppLayout() {
 
     try {
       setIsSaving(true);
+      isSavingRef.current = true;
       setError(null);
       await invoke('save_file_contents', {
         path: selectedFilePath,
         content,
       });
+
+      // Update saved content to match current content
+      setSavedContent(content);
+
+      // Wait a bit before clearing the flag to ignore the file-change event we just caused
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 1000);
     } catch (err) {
       setError(`Error saving file: ${err}`);
+      isSavingRef.current = false;
     } finally {
       setIsSaving(false);
     }
@@ -421,6 +495,12 @@ export function AppLayout() {
   const handleBreadcrumbClick = useCallback(async (path: string) => {
     try {
       setError(null);
+
+      // Open file explorer if it's collapsed
+      if (isFileExplorerCollapsed) {
+        setIsFileExplorerCollapsed(false);
+      }
+
       setCurrentDirectoryPath(path);
       const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
         path,
@@ -469,6 +549,40 @@ export function AppLayout() {
     }
   }, [currentDirectoryPath]);
 
+  const handleCreateFile = useCallback(async (filename: string) => {
+    try {
+      const basePath = currentDirectoryPath;
+      const newPath = basePath ? `${basePath}/${filename}` : filename;
+      await invoke('create_new_file', { path: newPath });
+      setActiveDialog(null);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Failed to create file:', error);
+      setError(`Failed to create file: ${error}`);
+    }
+  }, [currentDirectoryPath]);
+
+  const handleCreateFolder = useCallback(async (foldername: string) => {
+    try {
+      const basePath = currentDirectoryPath;
+      const newPath = basePath ? `${basePath}/${foldername}` : foldername;
+      await invoke('create_new_directory', { path: newPath });
+      setActiveDialog(null);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+      setError(`Failed to create folder: ${error}`);
+    }
+  }, [currentDirectoryPath]);
+
+  const handleToggleAutoSave = useCallback(() => {
+    setAutoSaveEnabled(prev => {
+      const newValue = !prev;
+      localStorage.setItem('manza_autosave_enabled', String(newValue));
+      return newValue;
+    });
+  }, []);
+
   const isAtRoot = currentDirectoryPath === rootDirectoryPath;
 
   const parseBreadcrumb = (path: string | null): { name: string; path: string }[] => {
@@ -508,6 +622,53 @@ export function AppLayout() {
       {currentDirectoryPath && (
         <div className="flex-shrink-0 border-b border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center space-x-2">
+            {/* File/Folder Creation Controls */}
+            <div className="flex items-center space-x-1 border-r border-gray-300 pr-2 dark:border-gray-700">
+              {/* New File Button */}
+              <button
+                data-testid="breadcrumb-new-file-button"
+                onClick={() => setActiveDialog('create-file')}
+                className="rounded p-1 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="New File"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </button>
+
+              {/* New Folder Button */}
+              <button
+                data-testid="breadcrumb-new-folder-button"
+                onClick={() => setActiveDialog('create-folder')}
+                className="rounded p-1 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="New Folder"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  />
+                </svg>
+              </button>
+            </div>
+
             {/* Back Button */}
             <button
               data-testid="navigate-back-button"
@@ -577,6 +738,28 @@ export function AppLayout() {
               </svg>
             </button>
 
+            {/* Select Directory Button */}
+            <button
+              data-testid="select-directory-button"
+              onClick={handleSelectDirectory}
+              className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Select directory"
+            >
+              <svg
+                className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+
             {/* Breadcrumb */}
             <div data-testid="breadcrumb" className="flex flex-1 items-center space-x-1 text-sm">
               {breadcrumbSegments.map((segment, index) => (
@@ -592,6 +775,95 @@ export function AppLayout() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* View Controls */}
+            <div className="flex items-center space-x-1 border-r border-gray-300 pr-2 dark:border-gray-700">
+              {/* Toggle File Explorer */}
+              <button
+                data-testid="toggle-file-explorer-button"
+                onClick={handleToggleFileExplorer}
+                className={`rounded p-1 ${
+                  !isFileExplorerCollapsed
+                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                }`}
+                title={isFileExplorerCollapsed ? "Show file explorer" : "Hide file explorer"}
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
+                </svg>
+              </button>
+
+              {/* Toggle Editor */}
+              <button
+                data-testid="toggle-editor-button"
+                onClick={handleCollapseEditor}
+                disabled={isPreviewCollapsed}
+                className={`rounded p-1 ${
+                  !isEditorCollapsed
+                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                } ${isPreviewCollapsed ? 'cursor-not-allowed opacity-50' : ''}`}
+                title={isEditorCollapsed ? "Show editor" : isPreviewCollapsed ? "Editor (only pane open)" : "Hide editor"}
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                  />
+                </svg>
+              </button>
+
+              {/* Toggle Preview */}
+              <button
+                data-testid="toggle-preview-button"
+                onClick={handleCollapsePreview}
+                disabled={isEditorCollapsed}
+                className={`rounded p-1 ${
+                  !isPreviewCollapsed
+                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                } ${isEditorCollapsed ? 'cursor-not-allowed opacity-50' : ''}`}
+                title={isPreviewCollapsed ? "Show preview" : isEditorCollapsed ? "Preview (only pane open)" : "Hide preview"}
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+              </button>
             </div>
 
             {/* Theme Toggle */}
@@ -657,37 +929,12 @@ export function AppLayout() {
       <div className="flex flex-1 overflow-hidden">
       {/* File Explorer Column */}
       {!isFileExplorerCollapsed && (
+        <>
         <div
           data-testid="file-explorer-column"
-          className="flex h-full w-64 flex-col border-r border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+          className="flex h-full flex-col bg-white dark:bg-gray-900"
+          style={{ width: `${fileExplorerWidth}px`, minWidth: '200px', maxWidth: '600px' }}
         >
-          <div className="flex items-center justify-between border-b border-gray-300 p-2 dark:border-gray-700">
-            <button
-              onClick={handleSelectDirectory}
-              className="flex-1 rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Select Directory
-            </button>
-            <button
-              onClick={handleToggleFileExplorer}
-              className="ml-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-              title="Collapse file explorer"
-            >
-              <svg
-                className="h-4 w-4 text-gray-600 dark:text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          </div>
           <div className="flex-1 overflow-auto">
             <FileExplorer
               rootPath={currentDirectoryPath}
@@ -708,31 +955,14 @@ export function AppLayout() {
             />
           </div>
         </div>
-      )}
-
-      {/* Expand File Explorer Button (shown when collapsed) */}
-      {isFileExplorerCollapsed && (
-        <div className="flex items-center border-r border-gray-300 dark:border-gray-700">
-          <button
-            onClick={handleToggleFileExplorer}
-            className="rounded-r bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Expand file explorer"
-          >
-            <svg
-              className="h-5 w-5 text-gray-600 dark:text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 5l7 7-7 7M5 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
+        {/* File Explorer Resize Divider */}
+        <div
+          data-testid="explorer-divider"
+          draggable="true"
+          onMouseDown={handleExplorerResizeStart}
+          className="w-1 cursor-col-resize bg-gray-300 hover:bg-blue-500 dark:bg-gray-700 dark:hover:bg-blue-600"
+        />
+        </>
       )}
 
       {/* Resizable Editor and Preview Panes */}
@@ -751,16 +981,6 @@ export function AppLayout() {
                 {error}
               </div>
             )}
-            {selectedFilePath && (
-              <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                <div className="flex items-center justify-between">
-                  <span className="truncate font-mono">{selectedFilePath}</span>
-                  {isSaving && (
-                    <span className="ml-2 text-xs text-gray-500">Saving...</span>
-                  )}
-                </div>
-              </div>
-            )}
             <div className="flex-1">
               <MarkdownEditor
                 key={selectedFilePath}
@@ -768,6 +988,11 @@ export function AppLayout() {
                 onChange={handleContentChange}
                 onSave={handleSave}
                 filePath={selectedFilePath}
+                isSaving={isSaving}
+                autoSaveEnabled={autoSaveEnabled}
+                suppressAutoSave={suppressAutoSave}
+                onToggleAutoSave={handleToggleAutoSave}
+                hasUnsavedChanges={content !== savedContent}
               />
             </div>
           </div>
@@ -777,16 +1002,31 @@ export function AppLayout() {
             data-testid="preview-column"
             className="flex h-full flex-col bg-white dark:bg-gray-900"
           >
-            <div className="border-b border-gray-300 bg-gray-50 p-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-              Preview
-            </div>
-            <div className="flex-1">
-              <MarkdownPreview content={content} />
-            </div>
+            <MarkdownPreview content={content} />
           </div>
         }
       />
       </div>
+
+      {/* Create File Dialog */}
+      {activeDialog === 'create-file' && (
+        <FileDialog
+          title="Create New File"
+          placeholder="Enter file name (e.g., document.md)"
+          onConfirm={handleCreateFile}
+          onCancel={() => setActiveDialog(null)}
+        />
+      )}
+
+      {/* Create Folder Dialog */}
+      {activeDialog === 'create-folder' && (
+        <FileDialog
+          title="Create New Folder"
+          placeholder="Enter folder name"
+          onConfirm={handleCreateFolder}
+          onCancel={() => setActiveDialog(null)}
+        />
+      )}
     </div>
   );
 }

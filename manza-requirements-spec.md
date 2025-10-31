@@ -451,6 +451,13 @@ manza/
 ## 8. Future Enhancements (Post-MVP)
 
 ### 8.1 Phase 2 Features
+- [ ] JSON viewing and editing support
+  - Syntax highlighting for `.json` files
+  - Formatted preview with collapsible tree view
+  - Validation with error highlighting
+  - Auto-formatting/prettifying
+  - Optional: JSON Schema validation
+  - Optional: Search/filter in JSON tree
 - [ ] Export to PDF/HTML
 - [ ] Find in files (search across directory)
 - [ ] Git integration indicators

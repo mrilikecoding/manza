@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import mermaid from 'mermaid';
 
 export interface MermaidDiagramProps {
@@ -31,27 +31,41 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [id] = useState(() => `mermaid-${Math.random().toString(36).substr(2, 9)}`);
+  const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Memoize the chart to only change when content actually changes
+  const stableChart = useMemo(() => chart.trim(), [chart]);
 
   useEffect(() => {
-    const renderDiagram = async () => {
-      if (!chart || !elementRef.current) return;
+    // Clear any pending render
+    if (renderTimeoutRef.current) {
+      clearTimeout(renderTimeoutRef.current);
+    }
+
+    // Debounce rendering by 300ms to avoid re-rendering on every keystroke
+    renderTimeoutRef.current = setTimeout(async () => {
+      if (!stableChart || !elementRef.current) return;
 
       try {
         // Initialize Mermaid if not already done
         initializeMermaid();
 
         // Render the diagram
-        const { svg: renderedSvg } = await mermaid.render(id, chart);
+        const { svg: renderedSvg } = await mermaid.render(id, stableChart);
         setSvg(renderedSvg);
         setError(null);
       } catch (err) {
         console.error('Mermaid rendering error:', err);
         setError('Failed to render diagram');
       }
-    };
+    }, 300);
 
-    renderDiagram();
-  }, [chart, id]);
+    return () => {
+      if (renderTimeoutRef.current) {
+        clearTimeout(renderTimeoutRef.current);
+      }
+    };
+  }, [stableChart, id]);
 
   // Show error state
   if (error) {

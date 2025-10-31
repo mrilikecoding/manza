@@ -84,60 +84,8 @@ export function ResizablePanes({
           minWidth: isLeftCollapsed ? '0' : '20%',
         }}
       >
-        {/* Collapse Button */}
-        {!isLeftCollapsed && (
-          <div className="flex justify-end border-b border-gray-200 p-1 dark:border-gray-700">
-            <button
-              data-testid="collapse-left-button"
-              onClick={onCollapseLeft}
-              disabled={isRightCollapsed}
-              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
-              title="Collapse editor"
-            >
-              <svg
-                className="h-4 w-4 text-gray-600 dark:text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
         <div className="flex-1 overflow-auto">{leftContent}</div>
       </div>
-
-      {/* Expand Left Button (shown when left is collapsed) */}
-      {isLeftCollapsed && (
-        <div className="flex items-center">
-          <button
-            data-testid="expand-left-button"
-            onClick={onCollapseLeft}
-            className="rounded-r bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Expand editor"
-          >
-            <svg
-              className="h-4 w-4 text-gray-600 dark:text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 5l7 7-7 7M5 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
-      )}
 
       {/* Divider */}
       {!isLeftCollapsed && !isRightCollapsed && (
@@ -149,32 +97,6 @@ export function ResizablePanes({
         />
       )}
 
-      {/* Expand Right Button (shown when right is collapsed) */}
-      {isRightCollapsed && (
-        <div className="flex items-center">
-          <button
-            data-testid="expand-right-button"
-            onClick={onCollapseRight}
-            className="rounded-l bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-            title="Expand preview"
-          >
-            <svg
-              className="h-4 w-4 text-gray-600 dark:text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-              />
-            </svg>
-          </button>
-        </div>
-      )}
-
       {/* Right Pane */}
       <div
         data-testid="right-pane"
@@ -184,32 +106,6 @@ export function ResizablePanes({
           minWidth: isRightCollapsed ? '0' : '20%',
         }}
       >
-        {/* Collapse Button */}
-        {!isRightCollapsed && (
-          <div className="flex justify-end border-b border-gray-200 p-1 dark:border-gray-700">
-            <button
-              data-testid="collapse-right-button"
-              onClick={onCollapseRight}
-              disabled={isLeftCollapsed}
-              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
-              title="Collapse preview"
-            >
-              <svg
-                className="h-4 w-4 text-gray-600 dark:text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
         <div className="flex-1 overflow-auto">{rightContent}</div>
       </div>
     </div>

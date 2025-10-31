@@ -6,6 +6,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import { isInlineCode } from 'react-shiki';
 import { useEffect } from 'react';
+import { open } from '@tauri-apps/api/shell';
 import 'katex/dist/katex.min.css';
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
@@ -84,6 +85,26 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
         components={{
+          // Open links in default browser
+          a: ({ node, href, children, ...props }) => {
+            const handleClick = (e: React.MouseEvent) => {
+              e.preventDefault();
+              if (href) {
+                open(href);
+              }
+            };
+
+            return (
+              <a
+                href={href}
+                onClick={handleClick}
+                {...props}
+                style={{ cursor: 'pointer' }}
+              >
+                {children}
+              </a>
+            );
+          },
           // Custom rendering for task lists
           input: ({ node, ...props }) => {
             if (props.type === 'checkbox') {
