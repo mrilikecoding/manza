@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { FileContextMenu } from './FileContextMenu';
 import { FileDialog } from './FileDialog';
@@ -25,6 +25,7 @@ export interface FileExplorerProps {
   onRefresh?: () => void;
   isAtRoot?: boolean;
   showDirectoryButton?: boolean;
+  refreshTrigger?: number; // When this changes, refresh all expanded folders
 }
 
 export function FileExplorer({
@@ -38,6 +39,7 @@ export function FileExplorer({
   onRefresh,
   isAtRoot = true,
   showDirectoryButton = true,
+  refreshTrigger,
 }: FileExplorerProps) {
   // Track which files are currently expanded
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => {
@@ -98,6 +100,19 @@ export function FileExplorer({
       console.error('Failed to reload expanded folder:', error);
     }
   };
+
+  // Refresh all expanded folders when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger === undefined) return;
+
+    const refreshAll = async () => {
+      for (const folderPath of expandedFiles) {
+        await reloadExpandedFolder(folderPath);
+      }
+    };
+
+    refreshAll();
+  }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFolderClick = async (folder: FileItem) => {
     if (!folder.isDirectory) {

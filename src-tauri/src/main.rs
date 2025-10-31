@@ -2,12 +2,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Manager;
+use std::sync::Arc;
 
 mod fs;
 use fs::{
     create_directory, create_file, delete_directory, delete_file, read_directory, read_file,
     rename_path, write_file, FileItem,
 };
+
+mod watcher;
+use watcher::DirectoryWatcher;
 
 /// Tauri command to read directory contents
 #[tauri::command]
@@ -68,8 +72,29 @@ fn rename_file_or_directory(old_path: String, new_path: String) -> Result<(), St
     rename_path(&old_path, &new_path)
 }
 
+/// Tauri command to start watching a directory for changes
+#[tauri::command]
+fn watch_directory(
+    app_handle: tauri::AppHandle,
+    watcher: tauri::State<Arc<DirectoryWatcher>>,
+    path: String,
+) -> Result<(), String> {
+    watcher.watch_directory(app_handle, path)
+}
+
+/// Tauri command to stop watching the current directory
+#[tauri::command]
+fn stop_watching(watcher: tauri::State<Arc<DirectoryWatcher>>) -> Result<(), String> {
+    watcher.stop_watching();
+    Ok(())
+}
+
 fn main() {
+    // Create the directory watcher
+    let watcher = Arc::new(DirectoryWatcher::new());
+
     tauri::Builder::default()
+        .manage(watcher)
         .invoke_handler(tauri::generate_handler![
             get_directory_contents,
             select_directory,
@@ -79,7 +104,9 @@ fn main() {
             create_new_directory,
             delete_file_at_path,
             delete_directory_at_path,
-            rename_file_or_directory
+            rename_file_or_directory,
+            watch_directory,
+            stop_watching
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]

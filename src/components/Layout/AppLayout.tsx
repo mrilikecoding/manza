@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
 import { FileExplorer, type FileItem } from '../FileExplorer';
 import { MarkdownEditor } from '../Editor';
 import { MarkdownPreview } from '../Preview';
@@ -25,6 +26,66 @@ export function AppLayout() {
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
   const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Listen for file system changes
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      unlisten = await listen('file-change', async (event) => {
+        console.log('[File Watcher] Change detected:', event.payload);
+
+        // Refresh the current directory if it's being watched
+        if (currentDirectoryPath) {
+          console.log('[File Watcher] Refreshing directory:', currentDirectoryPath);
+          try {
+            const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+              path: currentDirectoryPath,
+            });
+            console.log('[File Watcher] Got', directoryContents.length, 'items');
+            const transformedFiles: FileItem[] = directoryContents.map(file => ({
+              name: file.name,
+              path: file.path,
+              isDirectory: file.is_directory,
+              isMarkdown: file.is_markdown,
+            }));
+            setFiles(transformedFiles);
+
+            // Trigger refresh of expanded folders in FileExplorer
+            setRefreshTrigger(prev => prev + 1);
+
+            // If the currently open file was modified, reload it
+            if (selectedFilePath) {
+              console.log('[File Watcher] Checking if open file changed:', selectedFilePath);
+              try {
+                const fileContent = await invoke<string>('read_file_contents', {
+                  path: selectedFilePath,
+                });
+                setContent(fileContent);
+                console.log('[File Watcher] Reloaded open file');
+              } catch (err) {
+                // File might have been deleted
+                console.error('[File Watcher] Failed to reload file:', err);
+              }
+            }
+          } catch (err) {
+            console.error('[File Watcher] Failed to refresh directory:', err);
+          }
+        } else {
+          console.log('[File Watcher] No current directory path, skipping refresh');
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [currentDirectoryPath, selectedFilePath]);
 
   const handleSelectDirectory = useCallback(async () => {
     try {
@@ -48,6 +109,15 @@ export function AppLayout() {
           isMarkdown: file.is_markdown,
         }));
         setFiles(transformedFiles);
+
+        // Start watching the directory for changes
+        try {
+          console.log('[File Watcher] Starting watch on:', selected);
+          await invoke('watch_directory', { path: selected });
+          console.log('[File Watcher] Watch started successfully');
+        } catch (err) {
+          console.error('[File Watcher] Failed to start file watching:', err);
+        }
       }
     } catch (err) {
       setError(`Error loading directory: ${err}`);
@@ -130,6 +200,15 @@ export function AppLayout() {
         isMarkdown: file.is_markdown,
       }));
       setFiles(transformedFiles);
+
+      // Update file watcher to watch the new directory
+      try {
+        console.log('[File Watcher] Updating watch to:', folderPath);
+        await invoke('watch_directory', { path: folderPath });
+        console.log('[File Watcher] Watch updated successfully');
+      } catch (err) {
+        console.error('[File Watcher] Failed to update file watching:', err);
+      }
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
@@ -157,6 +236,15 @@ export function AppLayout() {
         isMarkdown: file.is_markdown,
       }));
       setFiles(transformedFiles);
+
+      // Update file watcher to watch the parent directory
+      try {
+        console.log('[File Watcher] Updating watch to parent:', parentPath);
+        await invoke('watch_directory', { path: parentPath });
+        console.log('[File Watcher] Watch updated successfully');
+      } catch (err) {
+        console.error('[File Watcher] Failed to update file watching:', err);
+      }
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
@@ -176,6 +264,15 @@ export function AppLayout() {
         isMarkdown: file.is_markdown,
       }));
       setFiles(transformedFiles);
+
+      // Update file watcher to watch the breadcrumb path
+      try {
+        console.log('[File Watcher] Updating watch to breadcrumb path:', path);
+        await invoke('watch_directory', { path });
+        console.log('[File Watcher] Watch updated successfully');
+      } catch (err) {
+        console.error('[File Watcher] Failed to update file watching:', err);
+      }
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
@@ -329,6 +426,7 @@ export function AppLayout() {
               onRefresh={handleRefresh}
               isAtRoot={isAtRoot}
               showDirectoryButton={false}
+              refreshTrigger={refreshTrigger}
             />
           </div>
         </div>
