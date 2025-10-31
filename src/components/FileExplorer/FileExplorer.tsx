@@ -26,6 +26,10 @@ export interface FileExplorerProps {
   isAtRoot?: boolean;
   showDirectoryButton?: boolean;
   refreshTrigger?: number; // When this changes, refresh all expanded folders
+  onNavigateBack?: () => void;
+  onNavigateForward?: () => void;
+  canNavigateBack?: boolean;
+  canNavigateForward?: boolean;
 }
 
 export function FileExplorer({
@@ -40,6 +44,10 @@ export function FileExplorer({
   isAtRoot = true,
   showDirectoryButton = true,
   refreshTrigger,
+  onNavigateBack,
+  onNavigateForward,
+  canNavigateBack = false,
+  canNavigateForward = false,
 }: FileExplorerProps) {
   // Track which files are currently expanded
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => {

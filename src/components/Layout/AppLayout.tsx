@@ -28,6 +28,10 @@ export function AppLayout() {
   const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Navigation history
+  const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
+  const [navigationIndex, setNavigationIndex] = useState<number>(-1);
+
   // Listen for file system changes
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -87,6 +91,85 @@ export function AppLayout() {
     };
   }, [currentDirectoryPath, selectedFilePath]);
 
+  // Helper to add directory to navigation history
+  const addToNavigationHistory = useCallback((path: string) => {
+    setNavigationHistory(prev => {
+      // If we're in the middle of history (navigated back), clear forward history
+      const newHistory = prev.slice(0, navigationIndex + 1);
+      // Only add if it's different from the current location
+      if (newHistory[newHistory.length - 1] !== path) {
+        newHistory.push(path);
+        setNavigationIndex(newHistory.length - 1);
+        return newHistory;
+      }
+      return prev;
+    });
+  }, [navigationIndex]);
+
+  // Navigate backward in history
+  const handleNavigateBack = useCallback(async () => {
+    if (navigationIndex > 0) {
+      const previousIndex = navigationIndex - 1;
+      const previousPath = navigationHistory[previousIndex];
+
+      try {
+        setCurrentDirectoryPath(previousPath);
+        const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+          path: previousPath,
+        });
+        const transformedFiles: FileItem[] = directoryContents.map(file => ({
+          name: file.name,
+          path: file.path,
+          isDirectory: file.is_directory,
+          isMarkdown: file.is_markdown,
+        }));
+        setFiles(transformedFiles);
+        setNavigationIndex(previousIndex);
+
+        // Update file watcher
+        try {
+          await invoke('watch_directory', { path: previousPath });
+        } catch (err) {
+          console.error('[File Watcher] Failed to update file watching:', err);
+        }
+      } catch (err) {
+        setError(`Error loading directory: ${err}`);
+      }
+    }
+  }, [navigationIndex, navigationHistory]);
+
+  // Navigate forward in history
+  const handleNavigateForward = useCallback(async () => {
+    if (navigationIndex < navigationHistory.length - 1) {
+      const nextIndex = navigationIndex + 1;
+      const nextPath = navigationHistory[nextIndex];
+
+      try {
+        setCurrentDirectoryPath(nextPath);
+        const directoryContents = await invoke<BackendFileItem[]>('get_directory_contents', {
+          path: nextPath,
+        });
+        const transformedFiles: FileItem[] = directoryContents.map(file => ({
+          name: file.name,
+          path: file.path,
+          isDirectory: file.is_directory,
+          isMarkdown: file.is_markdown,
+        }));
+        setFiles(transformedFiles);
+        setNavigationIndex(nextIndex);
+
+        // Update file watcher
+        try {
+          await invoke('watch_directory', { path: nextPath });
+        } catch (err) {
+          console.error('[File Watcher] Failed to update file watching:', err);
+        }
+      } catch (err) {
+        setError(`Error loading directory: ${err}`);
+      }
+    }
+  }, [navigationIndex, navigationHistory]);
+
   const handleSelectDirectory = useCallback(async () => {
     try {
       setError(null);
@@ -110,6 +193,9 @@ export function AppLayout() {
         }));
         setFiles(transformedFiles);
 
+        // Add to navigation history
+        addToNavigationHistory(selected);
+
         // Start watching the directory for changes
         try {
           console.log('[File Watcher] Starting watch on:', selected);
@@ -122,7 +208,7 @@ export function AppLayout() {
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
-  }, []);
+  }, [addToNavigationHistory]);
 
   const handleFileSelect = useCallback(async (filePath: string) => {
     // Find the file in our files array to check if it's a directory
@@ -201,6 +287,9 @@ export function AppLayout() {
       }));
       setFiles(transformedFiles);
 
+      // Add to navigation history
+      addToNavigationHistory(folderPath);
+
       // Update file watcher to watch the new directory
       try {
         console.log('[File Watcher] Updating watch to:', folderPath);
@@ -212,7 +301,7 @@ export function AppLayout() {
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
-  }, []);
+  }, [addToNavigationHistory]);
 
   const handleNavigateUp = useCallback(async () => {
     if (!currentDirectoryPath) return;
@@ -237,6 +326,9 @@ export function AppLayout() {
       }));
       setFiles(transformedFiles);
 
+      // Add to navigation history
+      addToNavigationHistory(parentPath);
+
       // Update file watcher to watch the parent directory
       try {
         console.log('[File Watcher] Updating watch to parent:', parentPath);
@@ -248,7 +340,7 @@ export function AppLayout() {
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
-  }, [currentDirectoryPath]);
+  }, [currentDirectoryPath, addToNavigationHistory]);
 
   const handleBreadcrumbClick = useCallback(async (path: string) => {
     try {
@@ -265,6 +357,9 @@ export function AppLayout() {
       }));
       setFiles(transformedFiles);
 
+      // Add to navigation history
+      addToNavigationHistory(path);
+
       // Update file watcher to watch the breadcrumb path
       try {
         console.log('[File Watcher] Updating watch to breadcrumb path:', path);
@@ -276,7 +371,7 @@ export function AppLayout() {
     } catch (err) {
       setError(`Error loading directory: ${err}`);
     }
-  }, []);
+  }, [addToNavigationHistory]);
 
   const handleRefresh = useCallback(async () => {
     if (!currentDirectoryPath) return;
@@ -337,6 +432,52 @@ export function AppLayout() {
       {currentDirectoryPath && (
         <div className="flex-shrink-0 border-b border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center space-x-2">
+            {/* Back Button */}
+            <button
+              data-testid="navigate-back-button"
+              onClick={handleNavigateBack}
+              disabled={navigationIndex <= 0}
+              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
+              title="Navigate back"
+            >
+              <svg
+                className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+
+            {/* Forward Button */}
+            <button
+              data-testid="navigate-forward-button"
+              onClick={handleNavigateForward}
+              disabled={navigationIndex >= navigationHistory.length - 1}
+              className="rounded p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800"
+              title="Navigate forward"
+            >
+              <svg
+                className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+
             {/* Navigate Up Button */}
             <button
               data-testid="navigate-up-button"
@@ -427,6 +568,10 @@ export function AppLayout() {
               isAtRoot={isAtRoot}
               showDirectoryButton={false}
               refreshTrigger={refreshTrigger}
+              onNavigateBack={handleNavigateBack}
+              onNavigateForward={handleNavigateForward}
+              canNavigateBack={navigationIndex > 0}
+              canNavigateForward={navigationIndex < navigationHistory.length - 1}
             />
           </div>
         </div>
