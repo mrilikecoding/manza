@@ -572,6 +572,8 @@ The following features are explicitly **not** included in the MVP:
 - [x] System theme detection
 - [x] Auto-save functionality
 - [ ] Keyboard shortcuts implementation (partial: Cmd+S, Cmd+B, Cmd+I working)
+- [ ] Keyboard navigation in file explorer (arrow keys, Enter, etc.)
+- [ ] Vim mode in editor (optional keybinding mode)
 - [ ] Performance optimization (lazy loading, virtualization)
 - [ ] Error handling and user feedback
 
