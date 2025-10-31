@@ -776,17 +776,10 @@ export function FileExplorer({
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
         </svg>
-        <input
-          type="text"
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          placeholder="Filter files..."
-          className="ml-2 flex-1 border-0 bg-transparent text-sm text-gray-900 placeholder-gray-500 focus:outline-none dark:text-gray-100 dark:placeholder-gray-400"
-        />
         {/* Toggle to show all folders */}
         <button
           onClick={() => setShowAllFolders(!showAllFolders)}
-          className={`ml-2 mr-2 rounded p-1 ${
+          className={`ml-2 rounded p-1 ${
             showAllFolders
               ? 'bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800'
               : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
@@ -807,29 +800,13 @@ export function FileExplorer({
             />
           </svg>
         </button>
-        {filterText && (
-          <>
-            {/* Clear filter button */}
-            <button
-              onClick={() => setFilterText('')}
-              className="ml-2 rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700"
-            >
-              <svg
-                className="h-5 w-5 text-gray-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </>
-        )}
+        <input
+          type="text"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+          placeholder="Filter..."
+          className="ml-2 flex-1 border-0 bg-transparent text-sm text-gray-900 placeholder-gray-500 focus:outline-none dark:text-gray-100 dark:placeholder-gray-400"
+        />
       </div>
 
       {/* File List */}
