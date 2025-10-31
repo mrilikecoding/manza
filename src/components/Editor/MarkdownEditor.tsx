@@ -11,9 +11,10 @@ export interface MarkdownEditorProps {
   content: string;
   onChange: (content: string) => void;
   onSave: () => void;
+  isSaving?: boolean;
 }
 
-export function MarkdownEditor({ filePath, content, onChange, onSave }: MarkdownEditorProps) {
+export function MarkdownEditor({ filePath, content, onChange, onSave, isSaving = false }: MarkdownEditorProps) {
   const { effectiveTheme } = useTheme();
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -170,7 +171,26 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
     );
   }
 
-  const fileName = filePath.split('/').pop() || 'Untitled';
+  // Format file path for display (show filename with truncated parent path)
+  const formatFilePathForDisplay = (fullPath: string) => {
+    const parts = fullPath.split('/');
+    const filename = parts[parts.length - 1];
+
+    // If path is short, just show it
+    if (fullPath.length <= 50) {
+      return fullPath;
+    }
+
+    // Show ".../" + last few directories + filename
+    const parentPath = parts.slice(0, -1).join('/');
+    const truncatedParent = parentPath.length > 30
+      ? '.../' + parts.slice(-3, -1).join('/')
+      : parentPath;
+
+    return truncatedParent + '/' + filename;
+  };
+
+  const displayPath = filePath ? formatFilePathForDisplay(filePath) : 'Untitled';
 
   return (
     <div data-testid="markdown-editor" className="show-line-numbers flex h-full w-full flex-col">
@@ -189,12 +209,23 @@ export function MarkdownEditor({ filePath, content, onChange, onSave }: Markdown
               d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
             />
           </svg>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{fileName}</span>
+          <span
+            className="text-sm font-medium text-gray-900 dark:text-gray-100"
+            title={filePath || undefined}
+          >
+            {displayPath}
+          </span>
         </div>
         <div className="flex items-center space-x-2 text-xs text-gray-500">
-          <span>Markdown</span>
-          <span>•</span>
-          <span>Auto-save enabled</span>
+          {isSaving ? (
+            <span className="text-gray-500 dark:text-gray-400">Saving...</span>
+          ) : (
+            <>
+              <span>Markdown</span>
+              <span>•</span>
+              <span>Auto-save enabled</span>
+            </>
+          )}
         </div>
       </div>
       <div

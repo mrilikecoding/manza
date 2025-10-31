@@ -714,7 +714,7 @@ export function FileExplorer({
             <button
               data-testid="new-file-button"
               onClick={() => setActiveDialog('create-file')}
-              className="flex items-center space-x-1 rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="rounded p-2 text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
               title="New File"
             >
               <svg
@@ -730,12 +730,11 @@ export function FileExplorer({
                   d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <span>New File</span>
             </button>
             <button
               data-testid="new-folder-button"
               onClick={() => setActiveDialog('create-folder')}
-              className="flex items-center space-x-1 rounded px-2 py-1 text-sm text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="rounded p-2 text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
               title="New Folder"
             >
               <svg
@@ -751,7 +750,6 @@ export function FileExplorer({
                   d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
                 />
               </svg>
-              <span>New Folder</span>
             </button>
           </div>
         </div>
