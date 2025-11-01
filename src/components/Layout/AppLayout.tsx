@@ -7,8 +7,10 @@ import { FileDialog } from '../FileExplorer/FileDialog';
 import { MarkdownEditor } from '../Editor';
 import { MarkdownPreview } from '../Preview';
 import { ResizablePanes } from './ResizablePanes';
+import { SettingsModal } from '../Settings/SettingsModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 // Type from Rust backend (snake_case)
 interface BackendFileItem {
@@ -51,6 +53,9 @@ export function AppLayout() {
   // File/folder creation dialog state
   type DialogType = 'create-file' | 'create-folder' | null;
   const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+
+  // Settings modal state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Handle file explorer resize
   useEffect(() => {
@@ -605,6 +610,16 @@ export function AppLayout() {
 
   const breadcrumbSegments = parseBreadcrumb(currentDirectoryPath);
 
+  // Register keyboard shortcuts
+  useKeyboardShortcuts({
+    onSave: handleSave,
+    onOpenSettings: () => setIsSettingsOpen(true),
+    onTogglePreview: handleCollapsePreview,
+    onToggleEditor: handleCollapseEditor,
+    onNewFile: () => setActiveDialog('create-file'),
+    onNewFolder: () => setActiveDialog('create-folder'),
+  });
+
   return (
     <div
       data-testid="app-layout"
@@ -914,6 +929,34 @@ export function AppLayout() {
                 </svg>
               )}
             </button>
+
+            {/* Settings */}
+            <button
+              data-testid="settings-button"
+              onClick={() => setIsSettingsOpen(true)}
+              className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Settings"
+            >
+              <svg
+                className="h-5 w-5 text-gray-600 dark:text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       )}
@@ -1019,6 +1062,9 @@ export function AppLayout() {
           onCancel={() => setActiveDialog(null)}
         />
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 }
